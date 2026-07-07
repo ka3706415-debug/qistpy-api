@@ -91,7 +91,7 @@ type ViewState = 'loading' | 'error' | 'ready';
                   <div class="card p-3 text-center">
                     <app-icon name="truck" [size]="20" class="text-primary mx-auto mb-1"/>
                     <div class="text-[11px] font-semibold text-ink">Free Delivery</div>
-                    <div class="text-[10px] text-muted">All Pakistan</div>
+                    <div class="text-[10px] text-muted">in Faisalabad</div>
                   </div>
                   <div class="card p-3 text-center">
                     <app-icon name="badge-check" [size]="20" class="text-success mx-auto mb-1"/>
@@ -113,10 +113,20 @@ type ViewState = 'loading' | 'error' | 'ready';
                   <div class="badge-primary mb-2 inline-flex">{{ p.brand.name }}</div>
                 }
 
-                <!-- Title -->
-                <h1 class="text-2xl md:text-3xl font-heading font-bold text-ink leading-tight mb-2">
-                  {{ p.name }}
-                </h1>
+                <!-- Title + Price Notice -->
+<div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-2">
+  <h1 class="text-2xl md:text-3xl font-heading font-bold text-ink leading-tight">
+    {{ p.name }}
+  </h1>
+
+  <div
+    class="flex items-center gap-1 px-3 py-1 rounded-full
+           bg-amber-50 border border-amber-200
+           text-amber-700 text-xs font-medium w-fit"
+  >
+    📍 <span>Prices may vary by city or branch based on availability</span>
+  </div>
+</div>
 
                 @if (p.shortDescription) {
                   <p class="text-muted text-sm mb-4 leading-relaxed">{{ p.shortDescription }}</p>

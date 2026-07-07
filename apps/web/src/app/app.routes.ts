@@ -190,6 +190,12 @@ export const routes: Routes = [
     title: 'FAQs — QistPY',
   },
   {
+  path: 'branches',
+  loadComponent: () =>
+    import('./features/static/branches.component').then((m) => m.BranchesComponent),
+  title: 'Our Branches — QistPY',
+},
+  {
     path: 'terms',
     loadComponent: () =>
       import('./features/static/static-page.component').then((m) => m.StaticPageComponent),
@@ -214,6 +220,14 @@ export const routes: Routes = [
     path: 'blog/:slug',
     loadComponent: () =>
       import('./features/blog/blog-detail.component').then((m) => m.BlogDetailComponent),
+  },
+
+  // ---------- City landing pages (must stay LAST before wildcard —
+  // this dynamic segment would otherwise swallow every static route above it) ----------
+  {
+    path: ':city',
+    loadComponent: () =>
+      import('./features/static/city-landing.component').then((m) => m.CityLandingComponent),
   },
 
   {

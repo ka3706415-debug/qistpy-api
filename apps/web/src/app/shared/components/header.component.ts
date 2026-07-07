@@ -26,7 +26,7 @@ function formatPkr(amount: number | null | undefined): string {
       <div class="container-qp flex justify-between items-center py-2">
         <div class="flex items-center gap-6">
           <span class="flex items-center gap-1.5">
-            <app-icon name="truck" [size]="14" /> Free delivery across Pakistan
+            <app-icon name="phone" [size]="14" />  No Online Payment Required
           </span>
           <span class="flex items-center gap-1.5">
             <app-icon name="shield" [size]="14" /> 100% original products
@@ -176,6 +176,7 @@ function formatPkr(amount: number | null | undefined): string {
             <a routerLink="/how-it-works" class="text-ink/80 hover:text-primary">How it works</a>
             <a routerLink="/blog" class="text-ink/80 hover:text-primary">Blog</a>
             <a routerLink="/faqs" class="text-ink/80 hover:text-primary">FAQs</a>
+            <a routerLink="/branches" routerLinkActive="active">Branches</a>
           </div>
         </nav>
 
