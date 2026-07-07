@@ -8,7 +8,7 @@ import { IconComponent } from './icon.component';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <a
-      href="https://wa.me/923007244198?text=Hello%20QistPY%2C%20I%20need%20help%20with%20installments."
+      href="https://wa.me/923288888811?text=Hello%20QistPY%2C%20I%20need%20help%20with%20installments."
       target="_blank"
       rel="noopener"
       aria-label="Chat on WhatsApp"

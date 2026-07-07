@@ -54,9 +54,9 @@ import { IconComponent } from './icon.component';
 
             <!-- Contact info -->
             <address class="mt-6 space-y-2 text-sm text-white/70 not-italic">
-              <a href="tel:+923007244198" class="flex items-center gap-2 hover:text-white">
+              <a href="tel:+923288888811" class="flex items-center gap-2 hover:text-white">
                 <app-icon name="phone" [size]="14" />
-                +92 300 724 4198
+                +9232 88 88 88 11
               </a>
               <a href="mailto:qistpy@gmail.com" class="flex items-center gap-2 hover:text-white">
                 <app-icon name="mail" [size]="14" />
@@ -82,7 +82,7 @@ import { IconComponent } from './icon.component';
                  class="w-9 h-9 rounded-lg bg-white/10 hover:bg-primary grid place-items-center transition-colors">
                 <app-icon name="youtube" [size]="16" />
               </a>
-              <a href="https://wa.me/923007244198" target="_blank" rel="noopener noreferrer" aria-label="Chat with QistPY on WhatsApp"
+              <a href="https://wa.me/923288888811" target="_blank" rel="noopener noreferrer" aria-label="Chat with QistPY on WhatsApp"
                  class="w-9 h-9 rounded-lg bg-white/10 hover:bg-success grid place-items-center transition-colors">
                 <app-icon name="whatsapp" [size]="16" />
               </a>
@@ -97,7 +97,6 @@ import { IconComponent } from './icon.component';
             <ul class="space-y-2.5 text-sm text-white/70">
               <li><a routerLink="/shop" class="hover:text-white">All Products</a></li>
               <li><a routerLink="/shop/mobiles" class="hover:text-white">Mobiles</a></li>
-              <li><a routerLink="/shop/laptops" class="hover:text-white">Laptops</a></li>
               <li><a routerLink="/shop/bikes" class="hover:text-white">Bikes</a></li>
               <li><a routerLink="/shop/leds" class="hover:text-white">LEDs</a></li>
               <li><a routerLink="/shop/acs" class="hover:text-white">Air Conditioners</a></li>

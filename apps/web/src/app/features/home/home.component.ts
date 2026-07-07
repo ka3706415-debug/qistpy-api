@@ -543,7 +543,7 @@ const OFFER_SLIDES: OfferSlide[] = [
             View All Branches
             <app-icon name="map-pin" [size]="16"/>
           </a>
-          <a href="tel:+923007244198"
+          <a href="tel:+923288888811"
              class="btn-lg bg-white border border-border text-ink hover:border-primary hover:text-primary transition-all duration-200">
             <app-icon name="phone" [size]="16"/>
             Call Us Now
@@ -948,7 +948,7 @@ export class HomeComponent implements OnInit, OnDestroy {
       ],
       contactPoint: {
         '@type': 'ContactPoint',
-        telephone: '+92-300-724-4198',
+        telephone: '+92 328 888 8811',
         contactType: 'customer service',
         availableLanguage: ['Urdu', 'English'],
         areaServed: 'PK',

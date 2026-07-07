@@ -35,7 +35,7 @@ import { CITY_PAGES, CityData } from './city-data';
               Browse Products
               <app-icon name="arrow-right" [size]="16"/>
             </a>
-            <a href="tel:+923007244198"
+            <a href="tel:+923288888811"
                class="btn-lg bg-white/10 hover:bg-white/20 text-white border border-white/20 transition-all duration-200">
               <app-icon name="phone" [size]="16"/>
               Call Us
@@ -180,7 +180,7 @@ import { CITY_PAGES, CityData } from './city-data';
               <app-icon name="map-pin" [size]="14"/>
               All Branches
             </a>
-            <a href="tel:+923007244198"
+            <a href="tel:+923288888811"
                class="btn-primary btn-md">
               <app-icon name="phone" [size]="14"/>
               Call Now
@@ -251,7 +251,7 @@ import { CITY_PAGES, CityData } from './city-data';
                   Create Free Account
                   <app-icon name="arrow-right" [size]="16"/>
                 </a>
-                <a href="tel:+923007244198"
+                <a href="tel:+923288888811"
                    class="btn-lg bg-white/10 hover:bg-white/20 text-white border border-white/20">
                   <app-icon name="phone" [size]="16"/>
                   Call Now
@@ -324,7 +324,7 @@ export class CityLandingComponent implements OnInit {
       name: 'QistPY ' + this.city.city,
       description: this.city.metaDescription,
       url: 'https://qistpy.com/' + this.city.slug,
-      telephone: '+92-300-724-4198',
+      telephone: '+92 328 888 8811',
       address: {
         '@type': 'PostalAddress',
         addressLocality: this.city.city,

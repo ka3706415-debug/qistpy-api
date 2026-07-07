@@ -245,7 +245,7 @@ type ViewState = 'loading' | 'error' | 'ready';
                     No payment needed — our agent will call you to confirm
                   </div>
 
-                  <a href="https://wa.me/923007244198?text=I'm interested in {{ p.name }}"
+                  <a href="https://wa.me/923288888811?text=I'm interested in {{ p.name }}"
                      target="_blank"
                      class="flex items-center justify-center gap-2 w-full py-3 rounded-xl
                             bg-success/10 text-success border border-success/30

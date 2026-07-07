@@ -36,8 +36,8 @@ function formatPkr(amount: number | null | undefined): string {
           </span>
         </div>
         <div class="flex items-center gap-4">
-          <a href="tel:+923007244198" class="flex items-center gap-1 hover:text-white">
-            <app-icon name="phone" [size]="12" /> +92 300 724 4198
+          <a href="tel:+923288888811" class="flex items-center gap-1 hover:text-white">
+            <app-icon name="phone" [size]="12" /> +9232 88 88 88 11
           </a>
           <a routerLink="/about" class="hover:text-white">About</a>
           <a routerLink="/contact" class="hover:text-white">Contact</a>
@@ -232,7 +232,6 @@ export class HeaderComponent {
     icon: 'smartphone' | 'laptop' | 'bike' | 'snowflake' | 'refrigerator' | 'tv';
   }> = [
     { name: 'Mobiles', slug: 'mobiles', icon: 'smartphone' },
-    { name: 'Laptops', slug: 'laptops', icon: 'laptop' },
     { name: 'Bikes', slug: 'bikes', icon: 'bike' },
     { name: 'ACs', slug: 'acs', icon: 'snowflake' },
     { name: 'Refrigerators', slug: 'refrigerators', icon: 'refrigerator' },

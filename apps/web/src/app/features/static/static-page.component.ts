@@ -53,7 +53,7 @@ interface Faq { q: string; a: string }
           </div>
         </div>
       </section>
-    }
+    }import
 
     <!-- ABOUT -->
     @if (page === 'about') {
@@ -103,7 +103,7 @@ interface Faq { q: string; a: string }
               <app-icon name="phone" [size]="18" />
             </div>
             <div class="font-semibold">Phone</div>
-            <a href="tel:+923007244198" class="text-sm text-primary hover:underline">+92 300 724 4198</a>
+            <a href="tel:+923288888811" class="text-sm text-primary hover:underline">+92 328 888 8811</a>
           </div>
           <div class="card p-5">
             <div class="icon-chip bg-primary/10 text-primary w-10 h-10 mb-3">
@@ -117,7 +117,8 @@ interface Faq { q: string; a: string }
               <app-icon name="whatsapp" [size]="18" />
             </div>
             <div class="font-semibold">WhatsApp</div>
-            <a href="https://wa.me/923007244198" target="_blank" class="text-sm text-primary hover:underline">Chat now</a>
+            <a href="https://wa.me/923288888811
+            " target="_blank" class="text-sm text-primary hover:underline">Chat now</a>
           </div>
         </div>
         <div class="card p-6 max-w-2xl">

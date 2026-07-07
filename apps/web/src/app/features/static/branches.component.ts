@@ -267,7 +267,7 @@ const FILTERS = ['All', 'Faisalabad', 'Other Cities'] as const;
               No problem! Give us a call, and our agent will be happy to assist you.
             </p>
             <div class="mt-6 flex gap-3 justify-center flex-wrap">
-              <a href="tel:+923007244198" class="btn-accent btn-lg shadow-lg">
+              <a href="tel:+923288888811" class="btn-accent btn-lg shadow-lg">
                 Call Us
                 <app-icon name="phone" [size]="16"/>
               </a>

@@ -75,14 +75,6 @@ type Step = 'phone' | 'otp' | 'complete';
                 <p class="text-sm text-muted -mt-3">
                   Enter the 6-digit code sent to <strong>{{ phone }}</strong>
                 </p>
-
-                <!-- Dev mode hint -->
-                <div class="rounded-xl bg-blue-50 text-blue-700 text-xs p-3 border border-blue-200">
-                  💡 <strong>Dev mode:</strong> Check the backend terminal window (CMD where
-                  <code>pnpm dev:api</code> is running) for a line like:<br/>
-                  <code class="mt-1 block">SMS to {{ phone }}: "Your QistPY verification code is <strong>XXXXXX</strong>"</code>
-                </div>
-
                 <div>
                   <label class="block text-sm font-medium text-ink mb-1.5">6-Digit OTP</label>
                   <input type="text" name="code" [(ngModel)]="code"

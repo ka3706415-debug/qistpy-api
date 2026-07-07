@@ -272,6 +272,6 @@ export class AccountInstallmentsComponent {
     const product = req.orderItem?.product?.name ?? 'product';
     const plan    = req.installmentPlan;
     const msg     = `Assalam o Alaikum! I want to pay for my installment plan.\n\nProduct: ${product}\nPlan: ${plan?.durationMonths} months\nAdvance: Rs ${plan?.advanceAmount}\nMonthly: Rs ${plan?.monthlyAmount}\n\nPlease share account number.`;
-    return `https://wa.me/923007244198?text=${encodeURIComponent(msg)}`;
+    return `https://wa.me/923288888811?text=${encodeURIComponent(msg)}`;
   }
 }
