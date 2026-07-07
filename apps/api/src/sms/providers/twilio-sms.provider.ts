@@ -3,37 +3,36 @@ import { ConfigService } from '@nestjs/config';
 import { SmsProvider, SmsSendResult } from '../sms.provider';
 
 /**
- * Twilio Verify SMS provider.
- * Uses Twilio Verify API — no phone number purchase needed.
+ * Twilio SMS provider — sends real SMS via Twilio Messaging API.
+ * Backend generates OTP, Twilio delivers it. No OTP mismatch.
  * Enabled when SMS_PROVIDER=twilio in .env
  *
  * Required env vars:
- *   TWILIO_ACCOUNT_SID   — starts with AC
- *   TWILIO_AUTH_TOKEN    — from Twilio console
- *   TWILIO_VERIFY_SID    — starts with VA
+ *   TWILIO_ACCOUNT_SID    — starts with AC
+ *   TWILIO_AUTH_TOKEN     — from Twilio console
+ *   TWILIO_PHONE_NUMBER   — your bought Twilio number e.g. +12762761417
  */
 @Injectable()
 export class TwilioSmsProvider implements SmsProvider {
   private readonly logger     = new Logger('TwilioSMS');
   private readonly accountSid: string;
   private readonly authToken:  string;
-  private readonly verifySid:  string;
+  private readonly fromNumber: string;
 
   constructor(private readonly config: ConfigService) {
     this.accountSid = this.config.getOrThrow<string>('TWILIO_ACCOUNT_SID');
     this.authToken  = this.config.getOrThrow<string>('TWILIO_AUTH_TOKEN');
-    this.verifySid  = this.config.getOrThrow<string>('TWILIO_VERIFY_SID');
+    this.fromNumber = this.config.getOrThrow<string>('TWILIO_PHONE_NUMBER');
   }
 
   async send(to: string, message: string): Promise<SmsSendResult> {
-    // Twilio Verify sends its own OTP message automatically.
-    // We trigger a verification and the OTP goes directly to the user.
+    const url = `https://api.twilio.com/2010-04-01/Accounts/${this.accountSid}/Messages.json`;
     const normalised = this.toE164(to);
-    const url = `https://verify.twilio.com/v2/Services/${this.verifySid}/Verifications`;
 
     const body = new URLSearchParams({
-      To:      normalised,
-      Channel: 'sms',
+      To:   normalised,
+      From: this.fromNumber,
+      Body: message,
     });
 
     const credentials = Buffer.from(
@@ -54,19 +53,17 @@ export class TwilioSmsProvider implements SmsProvider {
 
       if (!response.ok) {
         this.logger.error(
-          `Twilio Verify error ${data.code}: ${data.message} (to: ${normalised})`,
+          `Twilio error ${data.code}: ${data.message} (to: ${normalised})`,
         );
-        return { success: false, error: data.message ?? 'Twilio Verify request failed' };
+        return { success: false, error: data.message ?? 'Twilio request failed' };
       }
 
-      this.logger.log(
-        `Twilio Verify OTP sent to ${normalised} — SID: ${data.sid} status: ${data.status}`,
-      );
+      this.logger.log(`SMS sent via Twilio to ${normalised} — SID: ${data.sid}`);
       return { success: true, providerMessageId: data.sid };
 
     } catch (err) {
       const error = err instanceof Error ? err.message : 'unknown';
-      this.logger.error(`Twilio Verify fetch failed: ${error}`);
+      this.logger.error(`Twilio fetch failed: ${error}`);
       return { success: false, error };
     }
   }
