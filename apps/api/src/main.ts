@@ -42,7 +42,7 @@ async function bootstrap(): Promise<void> {
   app.setGlobalPrefix('api');
   app.enableShutdownHooks();
 
-  const port = parseInt(config.get<string>('API_PORT') ?? '3000', 10);
+  const port = parseInt(config.get<string>('PORT') ?? config.get<string>('API_PORT') ?? '3000', 10);
   // '0.0.0.0' = accessible from all network interfaces (same WiFi/LAN)
   await app.listen(port, '0.0.0.0');
 
