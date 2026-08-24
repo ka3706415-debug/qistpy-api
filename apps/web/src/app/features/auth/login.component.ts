@@ -122,8 +122,8 @@ export class LoginComponent {
       next: (res) => {
         this.loading.set(false);
         // Route based on role
-        const role = res.user.role;
-        if (role === 'ADMIN') this.router.navigate(['/admin']);
+               const role = res.user.role;
+        if (role === 'ADMIN' || role === 'PRODUCT_MANAGER') this.router.navigate(['/admin']);
         else if (role === 'VENDOR') this.router.navigate(['/vendor']);
         else this.router.navigate(['/account']);
       },

@@ -20,10 +20,10 @@ export class VendorProductsService {
   // ADMIN: automatically uses the first APPROVED vendor (for product management)
   // ============================================================
 
-  private async getApprovedVendor(userId: string) {
-    // Check if user is admin — use first approved vendor
+    private async getApprovedVendor(userId: string) {
+    // Check if user is admin or product manager — use first approved vendor
     const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
-    if (user?.role === 'ADMIN') {
+    if (user?.role === 'ADMIN' || user?.role === 'PRODUCT_MANAGER') {
       const vendor = await this.prisma.vendor.findFirst({
         where: { status: 'APPROVED' },
         orderBy: { createdAt: 'asc' },

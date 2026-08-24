@@ -857,13 +857,27 @@ export class AdminDashboardComponent {
   readonly auth = inject(AuthService);
   readonly fmt  = formatPkr;
 
-  readonly tabGroups = [
+    private readonly allTabGroups = [
     { label: 'Dashboard',  tabs: [{ id:'summary'      as Tab, icon:'📊', label:'Overview'      }, { id:'reports'      as Tab, icon:'📈', label:'Reports'      }] },
     { label: 'Operations', tabs: [{ id:'orders'       as Tab, icon:'🛒', label:'Orders'        }, { id:'installments' as Tab, icon:'📅', label:'Installments'  }, { id:'payments'     as Tab, icon:'💳', label:'Payments'     }, { id:'payouts'      as Tab, icon:'💸', label:'Payouts'      }] },
     { label: 'Content',    tabs: [{ id:'banners'      as Tab, icon:'🎯', label:'Banners'       }, { id:'products'     as Tab, icon:'📦', label:'Products'      }, { id:'categories'   as Tab, icon:'🗂️', label:'Categories'   }, { id:'blog'         as Tab, icon:'📝', label:'Blog'          }] },
     { label: 'People',     tabs: [{ id:'users'        as Tab, icon:'👥', label:'Users'         }, { id:'vendors'      as Tab, icon:'🏪', label:'Vendors'       }, { id:'kyc'          as Tab, icon:'🪪', label:'KYC'          }] },
     { label: 'System',     tabs: [{ id:'audit'        as Tab, icon:'📋', label:'Audit Log'     }] },
   ];
+
+  get tabGroups() {
+    if (this.auth.user()?.role === 'PRODUCT_MANAGER') {
+      return [
+        { label: 'Content', tabs: [
+          { id:'products'   as Tab, icon:'📦', label:'Products'   },
+          { id:'categories' as Tab, icon:'🗂️', label:'Categories' },
+          { id:'banners'    as Tab, icon:'🎯', label:'Banners'    },
+        ] },
+        { label: 'System', tabs: [{ id:'settings' as Tab, icon:'⚙️', label:'Settings' }] },
+      ];
+    }
+    return this.allTabGroups;
+  }
 
   tab   = signal<Tab>('summary');
   currentTabLabel() { for (const g of this.tabGroups) { const t = g.tabs.find(t => t.id === this.tab()); if (t) return t.label; } return ''; }
@@ -919,7 +933,14 @@ export class AdminDashboardComponent {
   showCatModal=false;
   catEditObj: any = {};
 
-  constructor() { this.loadS(); this.loadOrders(); this.loadInstallments(); this.loadReport(); }
+    constructor() {
+    if (this.auth.user()?.role === 'PRODUCT_MANAGER') {
+      this.tab.set('products');
+      this.loadProds();
+    } else {
+      this.loadS(); this.loadOrders(); this.loadInstallments(); this.loadReport();
+    }
+  }
 
   switchTab(t: Tab) {
     this.tab.set(t); this.selUser.set(null); this.mErr.set(null);

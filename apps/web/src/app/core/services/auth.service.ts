@@ -3,7 +3,7 @@ import { Injectable, PLATFORM_ID, computed, inject, signal } from '@angular/core
 import { isPlatformBrowser } from '@angular/common';
 import { Observable, tap } from 'rxjs';
 
-export type UserRole = 'CUSTOMER' | 'VENDOR' | 'ADMIN';
+export type UserRole = 'CUSTOMER' | 'VENDOR' | 'ADMIN' | 'PRODUCT_MANAGER';
 export type KycStatus = 'NOT_SUBMITTED' | 'PENDING' | 'APPROVED' | 'REJECTED';
 
 export interface AuthUser {

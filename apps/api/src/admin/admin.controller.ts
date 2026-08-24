@@ -16,7 +16,6 @@ class SuspendVendorDto { @IsString() @MinLength(5) @MaxLength(500) reason!: stri
 class KycReviewDto { @IsBoolean() approve!: boolean; @IsOptional() @IsString() @MaxLength(500) reason?: string; }
 
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(UserRole.ADMIN)
 @Controller('admin')
 export class AdminController {
   constructor(

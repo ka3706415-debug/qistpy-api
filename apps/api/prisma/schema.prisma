@@ -563,6 +563,7 @@ enum UserRole {
   CUSTOMER
   VENDOR
   ADMIN
+  PRODUCT_MANAGER
 }
 
 enum VendorStatus {

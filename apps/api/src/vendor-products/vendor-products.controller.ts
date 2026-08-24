@@ -24,7 +24,7 @@ import { UpdateProductDto } from './dto/update-product.dto';
 import { VendorProductsService } from './vendor-products.service';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(UserRole.VENDOR, UserRole.ADMIN)
+@Roles(UserRole.VENDOR, UserRole.ADMIN, UserRole.PRODUCT_MANAGER)
 @Controller('vendor/products')
 export class VendorProductsController {
   constructor(private readonly products: VendorProductsService) {}

@@ -7,7 +7,7 @@ import { BannersService } from './banners.service';
 import { UpsertBannerDto } from './dto/upsert-banner.dto';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(UserRole.ADMIN)
+@Roles(UserRole.ADMIN, UserRole.PRODUCT_MANAGER)
 @Controller('admin/banners')
 export class AdminBannersController {
   constructor(private readonly banners: BannersService) {}

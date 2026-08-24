@@ -151,10 +151,10 @@ export const routes: Routes = [
     title: 'Vendor Dashboard — QistPY',
   },
 
-  // ---------- Admin ----------
+   // ---------- Admin ----------
   {
     path: 'admin',
-    canActivate: [roleGuard(['ADMIN'])],
+    canActivate: [roleGuard(['ADMIN', 'PRODUCT_MANAGER'])],
     loadComponent: () =>
       import('./features/admin/admin-dashboard.component').then((m) => m.AdminDashboardComponent),
     title: 'Admin Panel — QistPY',
