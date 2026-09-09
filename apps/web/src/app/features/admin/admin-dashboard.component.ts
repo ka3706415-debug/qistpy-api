@@ -697,12 +697,38 @@ interface PEdit {
         <h3 class="text-lg font-heading font-bold">{{isAdd()?'Add Product':'Edit Product'}}</h3>
         <button type="button" (click)="editP.set(null)">✕</button>
       </div>
-      <form (ngSubmit)="saveP()" class="space-y-3">
+            <form (ngSubmit)="saveP()" class="space-y-3">
+        @if(isAdd()){
+          <div class="mb-1 p-3 bg-amber-50 border border-amber-200 rounded-xl">
+            <label class="text-xs font-semibold text-amber-800 block mb-1">🔗 Import from Oracle (optional)</label>
+            <div class="flex gap-2">
+              <input type="text" [(ngModel)]="oracleSearch" name="oracleSearch" (ngModelChange)="onOracleSearch()" placeholder="Item name search karein..." class="flex-1 px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-primary"/>
+              @if(selectedOracleItem()){
+                <button type="button" (click)="clearOracleSelection()" class="px-3 py-2 bg-slate-200 rounded-xl text-xs font-semibold">✕ Clear</button>
+              }
+            </div>
+            @if(oracleResults().length && !selectedOracleItem()){
+              <div class="mt-2 max-h-40 overflow-y-auto border border-slate-200 rounded-xl bg-white divide-y divide-slate-100">
+                @for(item of oracleResults();track item.itemId){
+                  <button type="button" (click)="selectOracleItem(item.itemId)" class="w-full text-left px-3 py-2 text-sm hover:bg-slate-50 flex justify-between">
+                    <span>{{item.itemTitle}}</span>
+                    <span class="text-muted tabular-nums">Rs {{item.cashPrice}}</span>
+                  </button>
+                }
+              </div>
+            }
+            @if(selectedOracleItem()){
+              <div class="mt-2 text-xs text-amber-700">
+                ✅ Selected — Cash Price Rs {{selectedOracleItem()!.cashPrice}} — {{selectedOracleItem()!.plans.length}} plans (Oracle se auto-aayenge)
+              </div>
+            }
+          </div>
+        }
         <div><label class="text-xs font-semibold text-muted block mb-1">Product Name *</label>
-          <input type="text" [(ngModel)]="pF.name" name="name" required class="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-primary"/></div>
+          <input type="text" [(ngModel)]="pF.name" name="name" required [disabled]="!!selectedOracleItem()" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-primary disabled:bg-slate-100"/></div>
         <div class="grid grid-cols-2 gap-3">
           <div><label class="text-xs font-semibold text-muted block mb-1">Cash Price (Rs) *</label>
-            <input type="number" [(ngModel)]="pF.cashPrice" name="price" required min="1" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm tabular-nums focus:outline-none focus:border-primary"/></div>
+            <input type="number" [(ngModel)]="pF.cashPrice" name="price" required min="1" [disabled]="!!selectedOracleItem()" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm tabular-nums focus:outline-none focus:border-primary disabled:bg-slate-100"/></div>
           <div><label class="text-xs font-semibold text-muted block mb-1">Stock</label>
             <input type="number" [(ngModel)]="pF.stock" name="stock" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-primary"/></div>
         </div>
@@ -924,6 +950,10 @@ export class AdminDashboardComponent {
 
   // Form state
   pF  = { id:'',name:'',cashPrice:0,stock:50,categoryId:'',brandId:'',shortDescription:'',description:'',imageUrl:'' };
+  oracleSearch = '';
+  oracleResults = signal<any[]>([]);
+  selectedOracleItem = signal<any|null>(null);
+  private oracleSearchTimer: any;
   planEs: Array<{advanceAmount:number;monthlyAmount:number;markupPercentage:number;isActive:boolean}> = [];
   newPlanD=3; newPlanAdv=0; newPlanMo=0;
   newImgUrl=''; newImgPrimary=false;
@@ -1072,13 +1102,62 @@ export class AdminDashboardComponent {
     this.filteredP.set(this.prods().filter(p=>(!q||p.name.toLowerCase().includes(q)||p.category.slug.includes(q)||(p.brand?.name?.toLowerCase().includes(q)??false))&&(!st||p.status===st)));
   }
   searchU() { this.loadU(this.uQuery); }
-  openAdd() { this.isAdd.set(true); this.pF={id:'',name:'',cashPrice:0,stock:50,categoryId:'',brandId:'',shortDescription:'',description:'',imageUrl:''}; this.mErr.set(null); this.editP.set({} as any); }
+    openAdd() { this.isAdd.set(true); this.pF={id:'',name:'',cashPrice:0,stock:50,categoryId:'',brandId:'',shortDescription:'',description:'',imageUrl:''}; this.mErr.set(null); this.clearOracleSelection(); this.editP.set({} as any); }
   openEdit(p:PEdit) { this.isAdd.set(false); this.pF={id:p.id,name:p.name,cashPrice:Number(p.cashPrice),stock:p.stock,categoryId:p.category.id??'',brandId:p.brand?.id??'',shortDescription:p.shortDescription??'',description:'',imageUrl:''}; this.mErr.set(null); this.editP.set(p); }
   openImg(p:PEdit)  { this.newImgUrl=''; this.newImgPrimary=p.images.length===0; this.mErr.set(null); this.imgP.set(p); }
   openPlans(p:PEdit){ this.planEs=p.plans.map(pl=>({advanceAmount:Number(pl.advanceAmount),monthlyAmount:Number(pl.monthlyAmount),markupPercentage:Number(pl.markupPercentage),isActive:pl.isActive})); this.newPlanD=3;this.newPlanAdv=0;this.newPlanMo=0; this.mErr.set(null); this.plansP.set(p); }
+   onOracleSearch() {
+    clearTimeout(this.oracleSearchTimer);
+    const q = this.oracleSearch.trim();
+    if (q.length < 2) { this.oracleResults.set([]); return; }
+    this.oracleSearchTimer = setTimeout(() => {
+      this.h.get(`/admin/oracle-items?search=${encodeURIComponent(q)}`).subscribe({
+        next: (items: any) => this.oracleResults.set(items),
+        error: () => this.oracleResults.set([]),
+      });
+    }, 400);
+  }
 
-  saveP() {
+  selectOracleItem(itemId: string) {
+    this.h.get(`/admin/oracle-items/${itemId}`).subscribe({
+      next: (item: any) => {
+        this.selectedOracleItem.set(item);
+        this.oracleResults.set([]);
+        this.oracleSearch = item.itemTitle;
+        this.pF.name = item.itemTitle;
+        this.pF.cashPrice = item.cashPrice;
+      },
+      error: () => this.t.error('Failed', 'Oracle item load nahi ho saka'),
+    });
+  }
+
+  clearOracleSelection() {
+    this.selectedOracleItem.set(null);
+    this.oracleSearch = '';
+    this.oracleResults.set([]);
+  }
+
+      saveP() {
+    if (this.mSaving()) return; // double-click guard
     this.mSaving.set(true); this.mErr.set(null);
+    if(this.isAdd() && this.selectedOracleItem()){
+      const imgUrl=this.pF.imageUrl?.trim();
+      if(!imgUrl){ this.mSaving.set(false); this.mErr.set('Image URL zaroori hai'); return; }
+      if(!this.pF.categoryId){ this.mSaving.set(false); this.mErr.set('Category select karein'); return; }
+      const body:any={
+        categoryId:this.pF.categoryId,
+        description:this.pF.description?.trim()||`${this.pF.name} available on easy installments.`,
+        shortDescription:this.pF.shortDescription?.trim()||undefined,
+        stock:Number(this.pF.stock),
+        images:[{publicId:`admin/${Date.now()}`,url:this.toDirectUrl(imgUrl),alt:this.pF.name,isPrimary:true}],
+      };
+      if(this.pF.brandId) body.brandId=this.pF.brandId;
+      this.h.post(`/admin/oracle-items/${this.selectedOracleItem()!.itemId}/import`,body).subscribe({
+        next:()=>{this.mSaving.set(false);this.t.success('Oracle se product import ho gaya!');this.editP.set(null);this.clearOracleSelection();this.loadProds();},
+        error:(e:any)=>{this.mSaving.set(false);this.mErr.set(Array.isArray(e?.error?.message)?e.error.message.join(', '):(e?.error?.message??'Failed'));},
+      });
+      return;
+    }
     if(this.isAdd()){
       const imgUrl=this.pF.imageUrl?.trim();
       const body:any={name:this.pF.name.trim(),categoryId:this.pF.categoryId,cashPrice:Number(this.pF.cashPrice),stock:Number(this.pF.stock),description:this.pF.description?.trim()||`${this.pF.name} available on easy installments.`,shortDescription:this.pF.shortDescription?.trim()||undefined};

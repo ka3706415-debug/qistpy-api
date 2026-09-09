@@ -72,7 +72,11 @@ export class CreateProductDto {
   @IsOptional()
   @IsString()
   sku?: string;
-
+  
+    @IsOptional()
+  @IsString()
+  oracleItemId?: string;
+  
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })

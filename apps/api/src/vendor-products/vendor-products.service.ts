@@ -84,9 +84,11 @@ export class VendorProductsService {
         slug,
         description: dto.description,
         shortDescription: dto.shortDescription,
-        cashPrice: dto.cashPrice,
+                cashPrice: dto.cashPrice,
         stock: dto.stock,
         sku: dto.sku,
+        oracleItemId: dto.oracleItemId,
+        lastOracleSyncAt: dto.oracleItemId ? new Date() : undefined,
         status: ProductStatus.DRAFT, // new products start as drafts
         images: images.length ? { create: images } : undefined,
         specs: dto.specs?.length

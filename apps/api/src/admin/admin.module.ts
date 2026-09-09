@@ -1,10 +1,11 @@
 import { Module } from '@nestjs/common';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { OracleModule } from '../oracle/oracle.module';
 import { AdminController } from './admin.controller';
 import { AdminService } from './admin.service';
 
 @Module({
-  imports: [NotificationsModule],
+    imports: [NotificationsModule, OracleModule],
   controllers: [AdminController],
   providers: [AdminService],
 })

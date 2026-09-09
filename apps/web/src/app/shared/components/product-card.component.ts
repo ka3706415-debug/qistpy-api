@@ -78,10 +78,7 @@ import { IconComponent } from './icon.component';
               <span class="font-semibold text-ink text-sm">{{ fmt(product.lowestMonthly) }}</span>
             </div>
           }
-          <div class="flex items-baseline justify-between pt-2 border-t border-border mt-2 tabular-nums">
-            <span class="text-[11px] text-muted">Cash price</span>
-            <span class="text-sm font-medium text-ink">{{ fmt(product.cashPrice) }}</span>
-          </div>
+        
         </div>
       </div>
 

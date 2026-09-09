@@ -1,4 +1,4 @@
 export const environment = {
   production: true,
-  apiUrl: 'https://qistpyapi-production-51d0.up.railway.app/api'
+  apiUrl: 'http://localhost:3000/api'
 };

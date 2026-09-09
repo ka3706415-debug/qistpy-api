@@ -41,8 +41,9 @@ export class HttpExceptionFilter implements ExceptionFilter {
         message = (b.message as string | string[]) ?? exception.message;
         error = (b.error as string) ?? exception.name;
       }
-    } else if (exception instanceof Prisma.PrismaClientKnownRequestError) {
+        } else if (exception instanceof Prisma.PrismaClientKnownRequestError) {
       // P2002 = unique constraint, P2025 = record not found
+      this.logger.error(`Prisma ${exception.code}: ${JSON.stringify(exception.meta)}`);
       if (exception.code === 'P2002') {
         status = HttpStatus.CONFLICT;
         message = 'A record with the provided value already exists';

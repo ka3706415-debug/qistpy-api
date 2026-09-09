@@ -26,6 +26,7 @@ import { SeoModule } from './seo/seo.module';                               //  
 import { BannersModule } from './banners/banners.module';                   //  Homepage banners
 import { BlogModule } from './blog/blog.module';                            //  Blog / content SEO
 
+import { OracleModule } from './oracle/oracle.module';                       
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, cache: true }),
@@ -52,6 +53,7 @@ import { BlogModule } from './blog/blog.module';                            //  
     SeoModule,
     BannersModule,
     BlogModule,
+   OracleModule,
   ],
 })
 export class AppModule {}

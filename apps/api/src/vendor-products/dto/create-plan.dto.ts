@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsIn, IsNumber, Min } from 'class-validator';
+import { IsInt, IsNumber, Max, Min } from 'class-validator';
 
 /**
  * Vendor sets installment plan values manually (brief Phase 4: no algorithmic pricing).
@@ -8,16 +8,12 @@ import { IsIn, IsNumber, Min } from 'class-validator';
  *
  * Allowed durations inlined to avoid workspace package resolution issues.
  */
-const ALLOWED_DURATIONS = [3, 6, 9, 12] as const;
-type AllowedDuration = (typeof ALLOWED_DURATIONS)[number];
-
 export class CreateInstallmentPlanDto {
   @Type(() => Number)
-  @IsIn(ALLOWED_DURATIONS as unknown as number[], {
-    message: 'durationMonths must be 3, 6, 9, or 12',
-  })
-  durationMonths!: AllowedDuration;
-
+  @IsInt()
+  @Min(1)
+  @Max(36)
+  durationMonths!: number;
   @Type(() => Number)
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)

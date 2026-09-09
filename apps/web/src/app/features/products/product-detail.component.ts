@@ -150,15 +150,6 @@ type ViewState = 'loading' | 'error' | 'ready';
                   }
                 </div>
 
-                <!-- Cash Price -->
-                <div class="card p-4 mb-5 bg-gradient-to-r from-primary-50 to-white border border-primary-100">
-                  <div class="text-xs text-muted uppercase tracking-wide font-semibold mb-1">
-                    Cash Price
-                  </div>
-                  <div class="text-3xl font-heading font-bold text-primary tabular-nums">
-                    {{ formatPkr(p.cashPrice) }}
-                  </div>
-                </div>
 
                 <!-- Plan selector -->
                 @if (p.plans.length) {
