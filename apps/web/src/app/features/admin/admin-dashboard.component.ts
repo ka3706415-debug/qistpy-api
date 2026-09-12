@@ -8,7 +8,7 @@ import { formatPkr } from '../../core/services/currency';
 import { ToastService } from '../../core/services/toast.service';
 import { IconComponent } from '../../shared/components/icon.component';
 
-type Tab = 'summary'|'orders'|'installments'|'banners'|'products'|'categories'|'blog'|'users'|'vendors'|'kyc'|'payouts'|'payments'|'reports'|'audit';
+type Tab = 'summary'|'orders'|'installments'|'banners'|'products'|'categories'|'blog'|'users'|'vendors'|'kyc'|'payouts'|'payments'|'reports'|'audit'|'settings';
 
 interface PEdit {
   id:string; name:string; slug:string; shortDescription?:string|null; cashPrice:string;
@@ -22,63 +22,111 @@ interface PEdit {
   selector:'app-admin-dashboard', standalone:true,
   imports:[CommonModule,FormsModule,IconComponent],
   changeDetection:ChangeDetectionStrategy.OnPush,
+  styles:[`
+    /* sidebar link */
+    .qa-link { position: relative; }
+    .qa-link.active { background: linear-gradient(90deg, rgba(35,70,160,.9), rgba(23,48,122,.9)); box-shadow: 0 4px 14px rgba(23,48,122,.35); }
+    .qa-link.active::before { content:''; position:absolute; left:0; top:50%; transform:translateY(-50%); width:3px; height:60%; border-radius:0 3px 3px 0; background:#F59E0B; }
+    /* stat card hover */
+    .qa-stat { transition: transform .2s ease, box-shadow .2s ease; }
+    .qa-stat:hover { transform: translateY(-3px); box-shadow: 0 12px 28px rgba(15,23,42,.10); }
+    /* thin scrollbar for sidebar nav */
+    .qa-nav::-webkit-scrollbar { width: 6px; }
+    .qa-nav::-webkit-scrollbar-thumb { background: rgba(255,255,255,.12); border-radius: 999px; }
+    .qa-nav::-webkit-scrollbar-track { background: transparent; }
+  `],
   template:`
-<div class="flex h-screen bg-slate-100 overflow-hidden">
+<div class="flex h-screen bg-slate-50 overflow-hidden">
 
-  <!-- SIDEBAR -->
-  <aside class="w-60 bg-slate-900 text-white flex flex-col shrink-0 hidden lg:flex">
-    <div class="p-4 border-b border-slate-700">
-      <div class="flex items-center gap-2.5">
-        <div class="w-8 h-8 rounded-lg bg-primary grid place-items-center font-bold text-sm">Q</div>
-        <div><div class="font-bold text-sm">QistPY Admin</div><div class="text-[10px] text-slate-400">{{ auth.user()?.name }}</div></div>
+  <!-- ══ MOBILE OVERLAY ══ -->
+  @if (sidebarOpen()) {
+    <div class="fixed inset-0 bg-black/50 z-40 lg:hidden backdrop-blur-sm" (click)="closeSidebar()" aria-hidden="true"></div>
+  }
+
+  <!-- ══ SIDEBAR ══ -->
+  <aside class="fixed lg:static inset-y-0 left-0 z-50 w-64 bg-gradient-to-b from-slate-900 to-slate-950
+                text-white flex flex-col shrink-0 transition-transform duration-300 lg:translate-x-0"
+         [class.translate-x-0]="sidebarOpen()"
+         [class.-translate-x-full]="!sidebarOpen()">
+
+    <!-- Brand -->
+    <div class="p-4 border-b border-white/10 flex items-center justify-between">
+      <div class="flex items-center gap-2.5 min-w-0">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-primary-dark grid place-items-center font-bold text-sm shadow-lg shrink-0">Q</div>
+        <div class="min-w-0">
+          <div class="font-bold text-sm truncate">QistPY Admin</div>
+          <div class="text-[10px] text-slate-400 truncate">{{ auth.user()?.name }}</div>
+        </div>
       </div>
+      <button type="button" (click)="closeSidebar()" class="lg:hidden text-slate-400 hover:text-white p-1" aria-label="Close menu">✕</button>
     </div>
-    <nav class="flex-1 overflow-y-auto py-2">
+
+    <!-- Nav -->
+    <nav class="qa-nav flex-1 overflow-y-auto py-2 px-2">
       @for (g of tabGroups; track g.label) {
-        <div class="px-3 pt-3 pb-1 text-[10px] text-slate-500 uppercase tracking-wider font-semibold">{{ g.label }}</div>
+        <div class="px-2 pt-3 pb-1 text-[10px] text-slate-500 uppercase tracking-wider font-semibold">{{ g.label }}</div>
         @for (t of g.tabs; track t.id) {
-          <button type="button" (click)="switchTab(t.id)"
-            class="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm rounded-lg mx-1 transition-all mb-0.5"
-            [class.bg-primary]="tab()===t.id" [class.text-white]="tab()===t.id"
-            [class.text-slate-300]="tab()!==t.id" [class.hover:bg-slate-800]="tab()!==t.id">
-            <span class="text-base">{{t.icon}}</span><span>{{t.label}}</span>
-            @if(t.id==='orders'&&pendingCount()>0){<span class="ml-auto bg-red-500 text-white text-[9px] rounded-full px-1.5 py-0.5 font-bold">{{pendingCount()}}</span>}
+                    <button type="button" (click)="switchTab(t.id)"
+            class="qa-link w-full flex items-center gap-2.5 px-3 py-2.5 text-sm rounded-xl transition-all mb-0.5 hover:bg-white/5"
+            [ngClass]="tab()===t.id ? 'active text-white' : 'text-slate-300'">
+            <span class="text-base w-5 text-center shrink-0">{{t.icon}}</span>
+            <span class="truncate">{{t.label}}</span>
+            @if(t.id==='orders'&&pendingCount()>0){<span class="ml-auto bg-red-500 text-white text-[9px] rounded-full px-1.5 py-0.5 font-bold shrink-0">{{pendingCount()}}</span>}
           </button>
         }
       }
     </nav>
-    <div class="p-3 border-t border-slate-700 space-y-1">
-      <a href="/" target="_blank" class="flex items-center gap-2 text-xs text-slate-400 hover:text-white px-3 py-2 rounded hover:bg-slate-800">↗ View Site</a>
-      <button type="button" (click)="logout()" class="w-full flex items-center gap-2 text-xs text-slate-400 hover:text-white px-3 py-2 rounded hover:bg-slate-800">⎋ Logout</button>
+
+    <!-- Footer -->
+    <div class="p-3 border-t border-white/10 space-y-1">
+      <a href="/" target="_blank" class="flex items-center gap-2 text-xs text-slate-400 hover:text-white px-3 py-2 rounded-lg hover:bg-white/5 transition-colors">↗ View Site</a>
+      <button type="button" (click)="logout()" class="w-full flex items-center gap-2 text-xs text-slate-400 hover:text-white px-3 py-2 rounded-lg hover:bg-white/5 transition-colors">⎋ Logout</button>
     </div>
   </aside>
 
-  <!-- MAIN -->
-  <div class="flex-1 flex flex-col overflow-hidden">
+  <!-- ══ MAIN ══ -->
+  <div class="flex-1 flex flex-col overflow-hidden min-w-0">
     <!-- Top header -->
-    <header class="bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between shrink-0">
-      <h1 class="text-lg font-heading font-bold text-ink">{{ currentTabLabel() }}</h1>
-      <div class="flex items-center gap-2 text-sm text-muted">
-        <span class="w-2 h-2 rounded-full bg-green-500 inline-block"></span>
-        System Online
+    <header class="bg-white/90 backdrop-blur border-b border-slate-200 px-4 md:px-6 py-3 flex items-center justify-between gap-3 shrink-0">
+      <div class="flex items-center gap-3 min-w-0">
+        <button type="button" (click)="toggleSidebar()" class="lg:hidden w-9 h-9 grid place-items-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 shrink-0" aria-label="Open menu">
+          <span class="text-lg">☰</span>
+        </button>
+        <div class="min-w-0">
+          <div class="text-[10px] font-semibold uppercase tracking-widest text-primary/70 leading-none mb-0.5 hidden sm:block">Dashboard</div>
+          <h1 class="text-base md:text-lg font-heading font-bold text-ink truncate leading-tight">{{ currentTabLabel() }}</h1>
+        </div>
+      </div>
+      <div class="flex items-center gap-3 shrink-0">
+        <div class="hidden sm:flex items-center gap-1.5 text-xs font-medium text-green-600 bg-green-50 px-2.5 py-1 rounded-full">
+          <span class="relative flex h-2 w-2">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+          </span>
+          System Online
+        </div>
+        <div class="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-primary-dark text-white grid place-items-center font-bold text-xs shrink-0">
+          {{ (auth.user()?.name || 'A').charAt(0).toUpperCase() }}
+        </div>
       </div>
     </header>
 
     <!-- Content -->
-    <main class="flex-1 overflow-y-auto p-6">
+    <main class="flex-1 overflow-y-auto p-4 md:p-6">
 
       <!-- ╔══ SUMMARY ══╗ -->
       @if(tab()==='summary'){
         @if(summary();as s){
-          <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-6">
             @for(c of summaryCards(s);track c.label){
-              <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer" (click)="c.tab&&switchTab(c.tab)">
-                <div class="flex items-start justify-between mb-3">
-                  <div class="text-2xl">{{c.icon}}</div>
-                  @if(c.badge){<span class="text-[10px] font-bold px-2 py-0.5 rounded-full" [class]="c.badgeClass || 'bg-slate-100 text-slate-600'">{{c.badge}}</span>}
+                            <div class="qa-stat bg-white rounded-2xl p-4 md:p-5 border border-slate-200 shadow-sm cursor-pointer relative overflow-hidden" (click)="c.tab&&switchTab(c.tab)">
+                <div class="absolute -top-6 -right-6 w-20 h-20 rounded-full opacity-[0.06]" [ngClass]="c.primary ? 'bg-primary' : 'bg-slate-900'" aria-hidden="true"></div>
+                <div class="relative flex items-start justify-between mb-3">
+                  <div class="w-11 h-11 rounded-xl grid place-items-center text-xl" [ngClass]="c.primary ? 'bg-primary/10' : 'bg-slate-100'">{{c.icon}}</div>
+                  @if(c.badge){<span class="text-[10px] font-bold px-2 py-0.5 rounded-full" [ngClass]="c.badgeClass || 'bg-slate-100 text-slate-600'">{{c.badge}}</span>}
                 </div>
-                <div class="text-2xl font-heading font-bold" [class.text-primary]="c.primary" [class.text-ink]="!c.primary">{{c.value}}</div>
-                <div class="text-xs text-muted mt-0.5 font-medium">{{c.label}}</div>
+                <div class="relative text-2xl md:text-3xl font-heading font-bold" [ngClass]="c.primary ? 'text-primary' : 'text-ink'">{{c.value}}</div>
+                <div class="relative text-xs text-muted mt-0.5 font-medium">{{c.label}}</div>
               </div>
             }
           </div>
@@ -178,7 +226,8 @@ interface PEdit {
                     <p class="text-[10px] font-bold text-muted uppercase">📅 Schedule — Paid: <span class="text-green-600">{{calcPaid(req)}}</span> · Remaining: <span class="text-amber-600">{{calcRemStr(req)}}</span></p>
                     <div class="w-24 h-1.5 bg-slate-100 rounded-full overflow-hidden"><div class="h-full bg-green-500 rounded-full" [style.width.%]="calcPct(req)"></div></div>
                   </div>
-                  <table class="w-full text-xs">
+                  <div class="overflow-x-auto">
+                  <table class="w-full text-xs min-w-[420px]">
                     <thead><tr class="text-muted border-b border-slate-100"><th class="text-left pb-1">#</th><th class="text-left pb-1">Due</th><th class="text-right pb-1">Amount</th><th class="text-right pb-1">Paid</th><th class="text-center pb-1">Status</th><th class="text-center pb-1">Action</th></tr></thead>
                     <tbody>
                       @for(s of req.schedules;track s.id){
@@ -202,6 +251,7 @@ interface PEdit {
                       <td colspan="2" class="pt-1.5 text-center text-muted">{{calcPaidN(req)}}/{{totalInstN(req)}}</td>
                     </tr></tfoot>
                   </table>
+                  </div>
                 </div>
               }
             </div>
@@ -248,7 +298,8 @@ interface PEdit {
                   <div class="text-xs text-muted mt-1.5">{{calcPaidN(selUser()!)}} of {{totalInstN(selUser()!)}} installments paid · {{calcPct(selUser()!)}}%</div>
                 </div>
               </div>
-              <table class="w-full text-sm">
+              <div class="overflow-x-auto">
+              <table class="w-full text-sm min-w-[480px]">
                 <thead class="text-xs text-muted uppercase border-b border-slate-200">
                   <tr><th class="text-left pb-2">#</th><th class="text-left pb-2">Due Date</th><th class="text-right pb-2">Amount</th><th class="text-right pb-2">Paid</th><th class="text-center pb-2">Status</th><th class="text-center pb-2">Action</th></tr>
                 </thead>
@@ -277,6 +328,7 @@ interface PEdit {
                   <td colspan="2" class="pt-2 text-center text-xs text-muted">{{calcPaidN(selUser()!)}}/{{totalInstN(selUser()!)}}</td>
                 </tr></tfoot>
               </table>
+              </div>
               <button type="button" (click)="openPayModal(selUser()!)" class="w-full py-2.5 bg-primary text-white rounded-xl font-semibold text-sm hover:bg-primary-dark">💰 Record Payment</button>
             </div>
           </div>
@@ -479,7 +531,8 @@ interface PEdit {
       @if(tab()==='users'){
         <input type="search" [(ngModel)]="uQuery" (ngModelChange)="searchU()" placeholder="Search name/phone..." class="border border-slate-200 rounded-xl px-3 py-2 text-sm bg-white shadow-sm w-full max-w-sm mb-4 focus:outline-none focus:border-primary"/>
         <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-          <table class="w-full text-sm">
+          <div class="overflow-x-auto">
+          <table class="w-full text-sm min-w-[520px]">
             <thead class="bg-slate-50 text-xs text-muted uppercase border-b border-slate-200"><tr>
               <th class="text-left px-4 py-3">Name</th><th class="text-left px-4 py-3">Phone</th>
               <th class="text-left px-4 py-3">Role</th><th class="text-left px-4 py-3">KYC</th>
@@ -498,6 +551,7 @@ interface PEdit {
               }
             </tbody>
           </table>
+          </div>
         </div>
       }
 
@@ -617,7 +671,7 @@ interface PEdit {
 
 <!-- Payment Modal -->
 @if(payMod()){
-  <div class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" (click)="payMod.set(null)">
+  <div class="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4" (click)="payMod.set(null)">
     <div class="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl" (click)="$event.stopPropagation()">
       <h3 class="font-heading font-bold text-lg mb-1">💰 Record Payment</h3>
       <div class="bg-slate-50 rounded-xl p-3 mb-4 text-sm">
@@ -649,7 +703,7 @@ interface PEdit {
 
 <!-- Blog Add/Edit Modal -->
 @if(blogEdit()){
-  <div class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" (click)="blogEdit.set(null)">
+  <div class="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4" (click)="blogEdit.set(null)">
     <div class="bg-white rounded-2xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl" (click)="$event.stopPropagation()">
       <div class="flex justify-between items-center mb-5">
         <h3 class="text-lg font-heading font-bold">{{blogIsAdd()?'New Blog Post':'Edit Blog Post'}}</h3>
@@ -691,7 +745,7 @@ interface PEdit {
 
 <!-- Product Add/Edit Modal -->
 @if(editP()){
-  <div class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" (click)="editP.set(null)">
+  <div class="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4" (click)="editP.set(null)">
     <div class="bg-white rounded-2xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl" (click)="$event.stopPropagation()">
       <div class="flex justify-between items-center mb-5">
         <h3 class="text-lg font-heading font-bold">{{isAdd()?'Add Product':'Edit Product'}}</h3>
@@ -762,7 +816,7 @@ interface PEdit {
 
 <!-- Image Modal -->
 @if(imgP()){
-  <div class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" (click)="imgP.set(null)">
+  <div class="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4" (click)="imgP.set(null)">
     <div class="bg-white rounded-2xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl" (click)="$event.stopPropagation()">
       <div class="flex justify-between items-center mb-4">
         <h3 class="text-lg font-heading font-bold">📷 {{imgP()!.name}}</h3>
@@ -800,7 +854,7 @@ interface PEdit {
 
 <!-- Plans Modal -->
 @if(plansP()){
-  <div class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" (click)="plansP.set(null)">
+  <div class="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4" (click)="plansP.set(null)">
     <div class="bg-white rounded-2xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl" (click)="$event.stopPropagation()">
       <div class="flex justify-between items-center mb-4">
         <h3 class="text-lg font-heading font-bold">📋 {{plansP()!.name}}</h3>
@@ -848,7 +902,7 @@ interface PEdit {
 
 <!-- Category Modal -->
 @if(showCatModal){
-  <div class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" (click)="showCatModal=false">
+  <div class="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4" (click)="showCatModal=false">
     <div class="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl" (click)="$event.stopPropagation()">
       <div class="flex justify-between items-center mb-5">
         <h3 class="text-lg font-heading font-bold">{{catEditObj.id?'Edit':'Add'}} Category</h3>
@@ -906,6 +960,12 @@ export class AdminDashboardComponent {
   }
 
   tab   = signal<Tab>('summary');
+
+  // Mobile sidebar drawer
+  sidebarOpen = signal(false);
+  toggleSidebar() { this.sidebarOpen.update(v => !v); }
+  closeSidebar()  { this.sidebarOpen.set(false); }
+
   currentTabLabel() { for (const g of this.tabGroups) { const t = g.tabs.find(t => t.id === this.tab()); if (t) return t.label; } return ''; }
 
   // Data
@@ -974,6 +1034,7 @@ export class AdminDashboardComponent {
 
   switchTab(t: Tab) {
     this.tab.set(t); this.selUser.set(null); this.mErr.set(null);
+    this.sidebarOpen.set(false);
     const m: Partial<Record<Tab,()=>void>> = {
       summary: ()=>this.loadS(), orders: ()=>this.loadOrders(),
       installments: ()=>this.loadInstallments(), banners: ()=>{this.ensureProds();this.loadBanners();},

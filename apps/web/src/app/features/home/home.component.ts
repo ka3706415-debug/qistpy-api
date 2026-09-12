@@ -1,14 +1,19 @@
-import { CommonModule } from '@angular/common';
+import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import {
   ChangeDetectionStrategy,
   Component,
+  Directive,
+  ElementRef,
+  Input,
   OnDestroy,
   OnInit,
+  PLATFORM_ID,
+  computed,
   inject,
   signal,
 } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import { Brand, BlogPost, Category, ProductListItem } from '../../core/models/api.models';
 import { BlogService } from '../../core/services/blog.service';
@@ -17,6 +22,39 @@ import { getCategorySvg } from '../../core/services/product-image.service';
 import { PageSeoService } from '../../core/services/seo.service';
 import { IconComponent, IconName } from '../../shared/components/icon.component';
 import { ProductCardComponent } from '../../shared/components/product-card.component';
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  SCROLL-REVEAL DIRECTIVE
+//  Usage: <div appReveal> | <div appReveal="left" [revealDelay]="120">
+//  SSR-safe + honours prefers-reduced-motion.
+// ══════════════════════════════════════════════════════════════════════════════
+@Directive({ selector: '[appReveal]', standalone: true })
+export class RevealDirective implements OnInit {
+  private readonly el = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly platformId = inject(PLATFORM_ID);
+
+  @Input() appReveal: '' | 'up' | 'left' | 'right' | 'zoom' | 'fade' = 'up';
+  @Input() revealDelay = 0; // ms — staggering ke liye
+
+  ngOnInit(): void {
+    const host = this.el.nativeElement;
+
+    // SSR ya reduced-motion → seedha dikhao, koi animation nahi
+    if (!isPlatformBrowser(this.platformId)) { host.classList.add('qp-reveal-shown'); return; }
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    if (reduce || typeof IntersectionObserver === 'undefined') { host.classList.add('qp-reveal-shown'); return; }
+
+    host.classList.add('qp-reveal', `qp-reveal--${this.appReveal || 'up'}`);
+    if (this.revealDelay) host.style.transitionDelay = `${this.revealDelay}ms`;
+
+    const io = new IntersectionObserver((entries, obs) => {
+      for (const e of entries) {
+        if (e.isIntersecting) { host.classList.add('qp-reveal-shown'); obs.unobserve(host); }
+      }
+    }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+    io.observe(host);
+  }
+}
 
 // ── Hero slides ──────────────────────────────────────────────────────────────
 interface HeroSlide {
@@ -59,65 +97,100 @@ const HERO_SLIDES: HeroSlide[] = [
   },
 ];
 
-// ── Special Offer slides ──────────────────────────────────────────────────────
-interface OfferSlide {
-  tag: string;
-  title: string;
-  sub: string;
-  advance: string;
-  monthly: string;
-  months: number;
-  total: string;
-  image: string;
-  link: string;
-  bg: string;
+// ── Home page category section (latest 8 + brand filter chips) ───────────────
+interface HomeCategorySection {
+  category: Category;
+  brands: { id: string; name: string; slug: string }[];
+  activeBrandSlug: string | null;
+  products: ProductListItem[];
+  loadingProducts: boolean;
 }
-
-const OFFER_SLIDES: OfferSlide[] = [
-  {
-    tag: 'Special Offer',
-    title: 'iPhone 15 Pro Max on Installment in Faisalabad',
-    sub: '256GB — starting from Rs 49,899 per month',
-    advance: 'Rs 1,19,800', monthly: 'Rs 49,899', months: 12, total: 'Rs 7,18,588',
-    image: 'https://fakeimg.pl/400x400/ffffff/1c1c1e?text=iPhone+15+Pro&font=bebas',
-    link: '/shop/mobiles',
-    bg: 'linear-gradient(135deg, #17307A 0%, #2346A0 100%)',
-  },
-  {
-    tag: 'Ramadan Deal',
-    title: 'Samsung 55" QLED Smart TV on Easy Instalments',
-    sub: '4K QLED — perfect for your Faisalabad lounge',
-    advance: 'Rs 39,800', monthly: 'Rs 16,252', months: 9, total: 'Rs 1,86,068',
-    image: 'https://fakeimg.pl/400x400/ffffff/1a202c?text=Samsung+55+QLED&font=bebas',
-    link: '/shop/leds',
-    bg: 'linear-gradient(135deg, #0d5c63 0%, #0f766e 100%)',
-  },
-  {
-    tag: 'Summer Deal',
-    title: 'Samsung 1.5 Ton AC on Installment in Faisalabad',
-    sub: 'WindFree inverter — garmi mein sukoon, bill mein farq',
-    advance: 'Rs 39,800', monthly: 'Rs 16,252', months: 9, total: 'Rs 1,86,068',
-    image: 'https://fakeimg.pl/400x400/ffffff/0c4a6e?text=Samsung+AC&font=bebas',
-    link: '/shop/acs',
-    bg: 'linear-gradient(135deg, #166534 0%, #15803d 100%)',
-  },
-];
 
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [CommonModule, RouterLink, ProductCardComponent, IconComponent],
+  imports: [
+    CommonModule,
+    RouterLink,
+    ProductCardComponent,
+    IconComponent,
+    RevealDirective,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styles: [`
+    /* ── Hero slide fade ── */
     @keyframes qp-fade-in {
       from { opacity: 0; transform: translateY(6px); }
       to   { opacity: 1; transform: translateY(0); }
     }
-    .qp-slide {
-      animation: qp-fade-in 0.45s ease both;
+    .qp-slide { animation: qp-fade-in 0.45s ease both; }
+
+    /* ── Floating orbs / badges ── */
+    @keyframes qp-float {
+      0%,100% { transform: translateY(0); }
+      50%     { transform: translateY(-10px); }
     }
+    .qp-float      { animation: qp-float 4s ease-in-out infinite; }
+    .qp-float-slow { animation: qp-float 6s ease-in-out infinite; }
+
+    /* ── Scroll reveal (appReveal directive) ── */
+    .qp-reveal {
+      opacity: 0;
+      will-change: opacity, transform;
+      transition: opacity .7s cubic-bezier(.22,.61,.36,1), transform .7s cubic-bezier(.22,.61,.36,1);
+    }
+    .qp-reveal--up    { transform: translateY(28px); }
+    .qp-reveal--left  { transform: translateX(-28px); }
+    .qp-reveal--right { transform: translateX(28px); }
+    .qp-reveal--zoom  { transform: scale(.94); }
+    .qp-reveal-shown  { opacity: 1 !important; transform: none !important; }
+
+    /* ── Brand marquee ── */
+    @keyframes qp-marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+    .qp-marquee-track { display: flex; width: max-content; animation: qp-marquee 30s linear infinite; }
+    .qp-marquee:hover .qp-marquee-track { animation-play-state: paused; }
+    /* edge fade so logos melt into the background instead of a hard seam */
+    .qp-marquee {
+      -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+              mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+    }
+
+    /* ── Category tile shine sweep on hover ── */
+    .qp-cat-shine { position: relative; overflow: hidden; }
+    .qp-cat-shine::after {
+      content: ''; position: absolute; top: 0; left: -120%; width: 60%; height: 100%;
+      background: linear-gradient(120deg, transparent, rgba(255,255,255,.55), transparent);
+      transform: skewX(-20deg); transition: left .6s ease;
+    }
+    .group:hover .qp-cat-shine::after { left: 130%; }
+
+    /* ── WhatsApp floating button ── */
+    .qp-wa {
+      position: fixed; right: 16px; bottom: 84px; z-index: 60;
+      display: inline-flex; align-items: center; height: 56px; border-radius: 999px;
+      background: #25D366; color: #fff; box-shadow: 0 8px 24px rgba(37,211,102,.4); overflow: hidden;
+    }
+    .qp-wa__icon { width: 30px; height: 30px; margin: 0 13px; flex: none; }
+    .qp-wa__label {
+      max-width: 0; opacity: 0; white-space: nowrap; font-weight: 700; font-size: 14px; margin-right: 0;
+      transition: max-width .3s ease, opacity .25s ease, margin .3s ease;
+    }
+    @media (hover: hover) { .qp-wa:hover .qp-wa__label { max-width: 180px; opacity: 1; margin-right: 16px; } }
+    .qp-wa__ring {
+      position: absolute; inset: 0; border-radius: 999px;
+      box-shadow: 0 0 0 0 rgba(37,211,102,.5); animation: qp-wa-pulse 2.2s infinite;
+    }
+    @keyframes qp-wa-pulse {
+      0%   { box-shadow: 0 0 0 0 rgba(37,211,102,.5); }
+      70%  { box-shadow: 0 0 0 16px rgba(37,211,102,0); }
+      100% { box-shadow: 0 0 0 0 rgba(37,211,102,0); }
+    }
+    @media (min-width: 768px) { .qp-wa { right: 28px; bottom: 28px; } }
+
     @media (prefers-reduced-motion: reduce) {
-      .qp-slide { animation: none; }
+      .qp-slide, .qp-float, .qp-float-slow, .qp-marquee-track, .qp-wa__ring { animation: none; }
+      .qp-reveal { opacity: 1; transform: none; transition: none; }
+      .qp-cat-shine::after { display: none; }
     }
   `],
   template: `
@@ -129,7 +202,7 @@ const OFFER_SLIDES: OfferSlide[] = [
       Monthly Instalments with QistPY. No credit card. No online payment. Agent-confirmed orders.
     </h1>
 
-   <!-- ═══════════════════ SERVICE AREA NOTICE (highlighted) ═══════════════════ -->
+    <!-- ═══════════════════ SERVICE AREA NOTICE ═══════════════════ -->
     <div class="bg-gradient-to-r from-primary to-primary-dark text-white">
       <div class="container-qp py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
         <div class="flex items-center gap-3 text-sm">
@@ -150,179 +223,158 @@ const OFFER_SLIDES: OfferSlide[] = [
         </a>
       </div>
     </div>
-    <!-- ═══════════════════ HERO + OFFER BANNERS ═══════════════════ -->
-    <section class="bg-white border-b border-border" aria-label="Featured products and offers">
-      <div class="container-qp py-5 md:py-7">
-        <div class="grid md:grid-cols-2 gap-4">
 
-          <!-- LEFT: Main Hero Carousel -->
-          <div class="relative overflow-hidden rounded-2xl min-h-[260px] md:min-h-[320px]"
-               role="region" aria-roledescription="carousel" aria-label="Featured products"
-               [class.bg-gradient-to-br]="bannersLoading()"
-               [class.from-primary]="bannersLoading()"
-               [class.to-primary-dark]="bannersLoading()"
-               [style.background]="!bannersLoading() && heroSlides().length ? heroSlides()[heroIdx()].bg : null">
-            @if (bannersLoading()) {
-              <div class="absolute inset-0 flex flex-col items-center justify-center text-center p-6">
-                <div class="w-12 h-12 rounded-2xl bg-white/15 backdrop-blur flex items-center justify-center mb-3" aria-hidden="true">
-                  <app-icon name="tag" [size]="22" class="text-white"/>
-                </div>
-                <h2 class="text-white font-heading font-bold text-xl md:text-2xl">Welcome to QistPy</h2>
-                <p class="text-white/70 text-xs md:text-sm mt-1.5">Loading today's best instalment deals&hellip;</p>
-                <div class="mt-5 flex gap-1.5" aria-hidden="true">
-                  <span class="w-2 h-2 rounded-full bg-white/70 animate-bounce" style="animation-delay:0ms"></span>
-                  <span class="w-2 h-2 rounded-full bg-white/70 animate-bounce" style="animation-delay:150ms"></span>
-                  <span class="w-2 h-2 rounded-full bg-white/70 animate-bounce" style="animation-delay:300ms"></span>
-                </div>
-              </div>
-            } @else {
-            @for (slide of heroSlides(); track $index) {
-              @if ($index === heroIdx()) {
-                <div class="qp-slide absolute inset-0 p-6 md:p-8 flex flex-col justify-between">
-                  <div class="absolute inset-0 opacity-10 pointer-events-none overflow-hidden rounded-2xl" aria-hidden="true">
-                    <svg viewBox="0 0 200 200" class="w-full h-full">
-                      <defs>
-                        <pattern id="hero-grid" width="20" height="20" patternUnits="userSpaceOnUse">
-                          <path d="M 20 0 L 0 0 0 20" fill="none" stroke="white" stroke-width="0.5"/>
-                        </pattern>
-                      </defs>
-                      <rect width="100%" height="100%" fill="url(#hero-grid)" />
-                    </svg>
-                  </div>
-                  <div class="relative z-10 flex gap-4 items-center">
-                    <div class="flex-1 min-w-0">
-                      @if (slide.badge) {
-                        <span class="inline-block text-xs font-bold px-2.5 py-1 rounded-full bg-white/20 text-white backdrop-blur mb-2">
-                          {{ slide.badge }}
-                        </span>
-                      }
-                      <h2 class="text-white font-heading font-bold text-xl md:text-2xl leading-tight">
-                        {{ slide.headline }}
-                      </h2>
-                      <p class="text-white/80 text-xs md:text-sm mt-1 max-w-xs">{{ slide.sub }}</p>
-                      @if (slide.cta) {
-                        <a [routerLink]="slide.ctaLink"
-                           class="mt-4 inline-flex items-center gap-1.5 bg-white text-primary
-                                  px-4 py-2 rounded-xl text-sm font-bold shadow-sm
-                                  transition-all duration-200 hover:bg-white/90 hover:shadow-md hover:-translate-y-0.5
-                                  active:translate-y-0 focus-visible:outline focus-visible:outline-2
-                                  focus-visible:outline-offset-2 focus-visible:outline-white">
-                          {{ slide.cta }}
-                          <app-icon name="arrow-right" [size]="14"/>
-                        </a>
-                      }
-                    </div>
-                    <div class="shrink-0 w-24 h-24 md:w-36 md:h-36">
-                      <img [src]="slide.image" [alt]="slide.headline + ' — available on instalments at QistPY'"
-                           width="144" height="144" class="w-full h-full object-contain drop-shadow-2xl"/>
-                    </div>
-                  </div>
-                  <div class="relative z-10 flex gap-1.5 mt-3">
-                    @for (s of heroSlides(); track $index) {
-                      <button type="button"
-                              (click)="heroIdx.set($index)"
-                              [attr.aria-label]="'Go to slide ' + ($index + 1)"
-                              [attr.aria-current]="$index === heroIdx()"
-                              class="h-1.5 rounded-full transition-all cursor-pointer"
-                              [class.w-5]="$index === heroIdx()"
-                              [class.w-1.5]="$index !== heroIdx()"
-                              [style.background]="$index === heroIdx() ? 'white' : 'rgba(255,255,255,0.4)'">
-                      </button>
-                    }
-                  </div>
-                </div>
+    <!-- ═══════════════════ HERO (glass + spotlight) ═══════════════════ -->
+    <section class="relative overflow-hidden border-b border-border
+                    bg-gradient-to-br from-primary-50 via-white to-accent/5" aria-label="QistPY hero">
+      <!-- animated background orbs -->
+      <div class="absolute -top-24 -left-24 w-96 h-96 bg-primary/20 rounded-full blur-3xl qp-float" aria-hidden="true"></div>
+      <div class="absolute top-10 right-0 w-80 h-80 bg-accent/20 rounded-full blur-3xl qp-float-slow" aria-hidden="true"></div>
+      <div class="absolute -bottom-32 left-1/3 w-96 h-96 bg-primary/10 rounded-full blur-3xl" aria-hidden="true"></div>
+
+      <div class="container-qp relative py-10 md:py-16">
+        <div class="grid lg:grid-cols-2 gap-8 lg:gap-14 items-center">
+
+          <!-- ══════ LEFT: copy + search ══════ -->
+          <div class="max-w-xl pb-2 md:pb-4">
+            <span class="inline-flex items-center gap-2 text-xs font-bold px-3 py-1.5 rounded-full
+                         bg-white shadow-sm ring-1 ring-primary/15 text-primary mb-5">
+              <span class="relative flex h-2 w-2">
+                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75"></span>
+                <span class="relative inline-flex rounded-full h-2 w-2 bg-success"></span>
+              </span>
+              No credit card · No online payment
+            </span>
+
+            <h2 class="font-heading font-extrabold text-ink text-3xl md:text-5xl leading-[1.12] tracking-tight">
+              Everything now on
+              <span class="relative inline-block whitespace-nowrap">
+                <span class="relative z-10 bg-gradient-to-r from-primary via-primary to-accent-dark bg-clip-text text-transparent">
+                  easy installments
+                </span>
+                <span class="absolute left-0 right-0 -bottom-0.5 h-2.5 bg-accent/25 -rotate-1 rounded -z-0" aria-hidden="true"></span>
+              </span>
+              in Faisalabad.
+            </h2>
+
+            <p class="text-muted text-sm md:text-base mt-4 leading-relaxed">
+              Mobiles, bikes and home appliances — pay a small advance, then easy monthly
+              installments. Our agent calls you to confirm everything.
+            </p>
+
+            <!-- search bar -->
+            <form (submit)="goSearch($event)" class="mt-6 flex items-center gap-2 bg-white rounded-2xl p-1.5
+                        shadow-lg ring-1 ring-border focus-within:ring-2 focus-within:ring-primary transition">
+              <div class="pl-3 text-muted" aria-hidden="true"><app-icon name="tag" [size]="18"/></div>
+              <input #heroSearch type="text" name="q"
+                     placeholder="Search mobile, laptop, AC…"
+                     aria-label="Search products"
+                     class="flex-1 bg-transparent outline-none text-sm text-ink placeholder:text-muted px-1 py-2 min-w-0"/>
+              <button type="submit"
+                      class="bg-primary hover:bg-primary-dark text-white text-sm font-bold
+                             px-4 md:px-5 py-2.5 rounded-xl transition-colors flex items-center gap-1.5 shrink-0">
+                Search <app-icon name="arrow-right" [size]="14"/>
+              </button>
+            </form>
+
+            <!-- plan durations -->
+            <div class="mt-4 flex flex-wrap items-center gap-2">
+              <span class="text-xs text-muted font-medium">Plans:</span>
+              @for (m of planMonths; track m) {
+                <span class="text-xs font-bold px-2.5 py-1 rounded-lg bg-primary/10 text-primary ring-1 ring-primary/15">
+                  {{ m }} months
+                </span>
               }
-            }
-            }
+            </div>
+
+            <!-- quick chips -->
+            <div class="mt-3 flex flex-wrap items-center gap-2">
+              <span class="text-xs text-muted font-medium">Popular:</span>
+              @for (chip of heroChips; track chip.label) {
+                <a [routerLink]="chip.link"
+                   class="text-xs font-semibold px-3 py-1.5 rounded-full bg-white ring-1 ring-border
+                          text-ink hover:ring-primary hover:text-primary transition-all">
+                  {{ chip.label }}
+                </a>
+              }
+            </div>
           </div>
 
-          <!-- RIGHT: Special Offers Carousel -->
-          <div class="relative overflow-hidden rounded-2xl min-h-[260px] md:min-h-[320px]"
-               role="region" aria-roledescription="carousel" aria-label="Special offers"
-               [class.bg-gradient-to-br]="bannersLoading()"
-               [class.from-accent-dark]="bannersLoading()"
-               [class.to-ink]="bannersLoading()"
-               [style.background]="!bannersLoading() && offerSlides().length ? offerSlides()[offerIdx()].bg : null">
+          <!-- ══════ RIGHT: floating spotlight product card ══════ -->
+          <div class="relative flex justify-center lg:justify-end items-center">
             @if (bannersLoading()) {
-              <div class="absolute inset-0 flex flex-col items-center justify-center text-center p-6">
-                <div class="w-12 h-12 rounded-2xl bg-white/15 backdrop-blur flex items-center justify-center mb-3" aria-hidden="true">
-                  <app-icon name="badge-check" [size]="22" class="text-white"/>
-                </div>
-                <h2 class="text-white font-heading font-bold text-xl md:text-2xl">QistPy</h2>
-                <p class="text-white/70 text-xs md:text-sm mt-1.5">Loading special offers&hellip;</p>
-                <div class="mt-5 flex gap-1.5" aria-hidden="true">
-                  <span class="w-2 h-2 rounded-full bg-white/70 animate-bounce" style="animation-delay:0ms"></span>
-                  <span class="w-2 h-2 rounded-full bg-white/70 animate-bounce" style="animation-delay:150ms"></span>
-                  <span class="w-2 h-2 rounded-full bg-white/70 animate-bounce" style="animation-delay:300ms"></span>
-                </div>
-              </div>
-            } @else {
-            @for (slide of offerSlides(); track $index) {
-              @if ($index === offerIdx()) {
-                <div class="qp-slide absolute inset-0 p-6 md:p-8 flex flex-col justify-between">
-                  <div class="absolute inset-0 opacity-10 pointer-events-none overflow-hidden rounded-2xl" aria-hidden="true">
-                    <svg viewBox="0 0 200 200" class="w-full h-full">
-                      <rect width="100%" height="100%" fill="url(#hero-grid)"/>
-                    </svg>
-                  </div>
-                  <div class="relative z-10 flex gap-4 items-center">
-                    <div class="flex-1 min-w-0">
-                      @if (slide.tag) {
-                        <span class="inline-block text-xs font-bold px-2.5 py-1 rounded-full bg-white/20 text-white backdrop-blur mb-2">
-                          {{ slide.tag }}
+              <div class="w-full max-w-md h-[26rem] rounded-[2rem] shimmer"></div>
+            } @else if (heroSlides().length) {
+              @for (slide of heroSlides(); track $index) {
+                @if ($index === heroIdx()) {
+                  <div class="qp-slide relative w-full max-w-sm md:max-w-md">
+                    <!-- glow behind card -->
+                    <div class="absolute inset-0 rounded-[2rem] blur-2xl opacity-40"
+                         [style.background]="slide.bg" aria-hidden="true"></div>
+
+                    <!-- main glass card -->
+                    <div class="relative rounded-[2rem] p-5 md:p-7 overflow-hidden
+                                bg-white/70 backdrop-blur-xl ring-1 ring-white/60 shadow-2xl
+                                transition-transform duration-300 hover:-translate-y-1">
+                      <div class="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white to-transparent opacity-60" aria-hidden="true"></div>
+                      <div class="absolute -top-16 -right-16 w-48 h-48 rounded-full blur-2xl opacity-30"
+                           [style.background]="slide.bg" aria-hidden="true"></div>
+
+                      @if (slide.badge) {
+                        <span class="relative inline-flex items-center gap-1.5 text-[11px] font-bold
+                                     px-3 py-1.5 rounded-full text-white shadow"
+                              [style.background]="slide.bg">
+                          <span class="w-1.5 h-1.5 rounded-full bg-white"></span>{{ slide.badge }}
                         </span>
                       }
-                      <h2 class="text-white font-heading font-bold text-base md:text-xl leading-tight">{{ slide.title }}</h2>
-                      <p class="text-white/80 text-xs mt-1">{{ slide.sub }}</p>
-                      @if (slide.months) {
-                        <div class="mt-3 bg-white/15 backdrop-blur rounded-xl p-3 space-y-1 text-xs tabular-nums">
-                          <div class="flex justify-between text-white/80">
-                            <span>Advance</span>
-                            <span class="font-bold text-white">{{ slide.advance }}</span>
-                          </div>
-                          <div class="flex justify-between text-white/80">
-                            <span>Monthly &times; {{ slide.months }}</span>
-                            <span class="font-bold text-white">{{ slide.monthly }}</span>
-                          </div>
-                          <div class="flex justify-between pt-1 border-t border-white/20">
-                            <span class="text-white font-semibold">Total Payable</span>
-                            <span class="font-bold text-accent">{{ slide.total }}</span>
-                          </div>
-                        </div>
-                      }
-                      <a [routerLink]="slide.link"
-                         class="mt-3 inline-flex items-center gap-1.5 bg-white text-primary
-                                px-4 py-2 rounded-xl text-sm font-bold shadow-sm
-                                transition-all duration-200 hover:bg-white/90 hover:shadow-md hover:-translate-y-0.5
-                                active:translate-y-0 focus-visible:outline focus-visible:outline-2
-                                focus-visible:outline-offset-2 focus-visible:outline-white">
-                        View Plan
-                        <app-icon name="arrow-right" [size]="14"/>
+
+                      <div class="relative mt-4 h-44 sm:h-52 md:h-72 flex items-center justify-center">
+                        <img [src]="slide.image" [alt]="slide.headline + ' — available on instalments at QistPY'"
+                             width="300" height="300" class="max-h-44 sm:max-h-52 md:max-h-72 object-contain drop-shadow-2xl"/>
+                      </div>
+
+                      <h3 class="relative mt-4 font-heading font-bold text-ink text-lg md:text-xl leading-snug line-clamp-2">
+                        {{ slide.headline }}
+                      </h3>
+                      <p class="relative text-sm text-muted mt-1.5 line-clamp-2">{{ slide.sub }}</p>
+
+                      <a [routerLink]="slide.ctaLink"
+                         class="relative mt-5 w-full inline-flex items-center justify-center gap-2
+                                text-white text-sm font-bold px-4 py-3 md:py-3.5 rounded-xl shadow-lg
+                                hover:-translate-y-0.5 transition-transform"
+                         [style.background]="slide.bg">
+                        {{ slide.cta || 'View Plan' }} <app-icon name="arrow-right" [size]="15"/>
                       </a>
                     </div>
-                    <div class="shrink-0 w-20 h-20 md:w-32 md:h-32">
-                      <img [src]="slide.image" [alt]="slide.title + ' instalment plan'"
-                           width="128" height="128" class="w-full h-full object-contain drop-shadow-2xl"/>
+
+                    <!-- floating verified badge (desktop only) -->
+                    <div class="hidden md:flex absolute -right-5 top-8 qp-float-slow
+                                bg-white rounded-2xl shadow-xl ring-1 ring-border px-3 py-2.5 items-center gap-2">
+                      <div class="w-8 h-8 rounded-lg bg-primary/10 text-primary grid place-items-center" aria-hidden="true">
+                        <app-icon name="badge-check" [size]="16"/>
+                      </div>
+                      <span class="text-xs font-bold text-ink">100% Original</span>
                     </div>
                   </div>
-                  <div class="relative z-10 flex gap-1.5 mt-3">
-                    @for (s of offerSlides(); track $index) {
-                      <button type="button"
-                              (click)="offerIdx.set($index)"
-                              [attr.aria-label]="'Go to offer ' + ($index + 1)"
-                              [attr.aria-current]="$index === offerIdx()"
-                              class="h-1.5 rounded-full transition-all cursor-pointer"
-                              [class.w-5]="$index === offerIdx()"
-                              [class.w-1.5]="$index !== offerIdx()"
-                              [style.background]="$index === offerIdx() ? 'white' : 'rgba(255,255,255,0.4)'">
-                      </button>
-                    }
-                  </div>
+                }
+              }
+
+              <!-- dots -->
+              @if (heroSlides().length > 1) {
+                <div class="absolute -bottom-3 left-1/2 lg:left-auto lg:right-8 -translate-x-1/2 lg:translate-x-0 flex gap-1.5">
+                  @for (s of heroSlides(); track $index) {
+                    <button type="button" (click)="heroIdx.set($index)"
+                            [attr.aria-label]="'Go to product ' + ($index + 1)"
+                            [attr.aria-current]="$index === heroIdx()"
+                            class="h-1.5 rounded-full transition-all cursor-pointer"
+                            [class.w-6]="$index === heroIdx()" [class.w-1.5]="$index !== heroIdx()"
+                            [style.background]="$index === heroIdx() ? '#17307A' : '#cbd5e1'"></button>
+                  }
                 </div>
               }
             }
-            }
           </div>
+
         </div>
       </div>
     </section>
@@ -335,7 +387,8 @@ const OFFER_SLIDES: OfferSlide[] = [
             <div class="group flex items-center gap-3 py-4 px-4 md:px-6
                         transition-colors duration-200 hover:bg-primary/5">
               <div class="icon-chip bg-primary/10 text-primary w-9 h-9 shrink-0
-                          transition-colors duration-200 group-hover:bg-primary group-hover:text-white" aria-hidden="true">
+                          transition-all duration-300 group-hover:bg-primary group-hover:text-white
+                          group-hover:scale-110 group-hover:rotate-6" aria-hidden="true">
                 <app-icon [name]="p.icon" [size]="18"/>
               </div>
               <div>
@@ -351,7 +404,7 @@ const OFFER_SLIDES: OfferSlide[] = [
     <!-- ═══════════════════ CATEGORIES ═══════════════════ -->
     <section class="py-10 md:py-14" aria-labelledby="categories-heading">
       <div class="container-qp">
-        <div class="flex items-end justify-between mb-6">
+        <div class="flex items-end justify-between mb-6" appReveal="left">
           <div>
             <p class="text-xs font-bold uppercase tracking-widest text-primary mb-1">Browse</p>
             <h2 id="categories-heading" class="text-ink">Shop by Category</h2>
@@ -368,8 +421,9 @@ const OFFER_SLIDES: OfferSlide[] = [
             @for (cat of categories(); track cat.id) {
               <a [routerLink]="['/shop', cat.slug]"
                  [attr.aria-label]="cat.name + ' on easy instalments'"
+                 appReveal="up" [revealDelay]="$index * 50"
                  class="flex flex-col items-center gap-2 group focus-visible:outline-none">
-                <div class="w-16 h-16 md:w-20 md:h-20 rounded-full overflow-hidden border-2 border-border
+                <div class="qp-cat-shine w-16 h-16 md:w-20 md:h-20 rounded-2xl overflow-hidden border-2 border-border
                              bg-white shadow-sm group-hover:border-primary group-hover:shadow-lg
                              group-hover:shadow-primary/15 group-hover:-translate-y-1 group-hover:scale-105
                              group-focus-visible:ring-2 group-focus-visible:ring-primary group-focus-visible:ring-offset-2
@@ -398,67 +452,111 @@ const OFFER_SLIDES: OfferSlide[] = [
       </div>
     </section>
 
-    <!-- ═══════════════════ BRAND STRIP ═══════════════════ -->
+    <!-- ═══════════════════ BRAND STRIP (marquee) ═══════════════════ -->
     @if (brands().length) {
       <section class="py-6 bg-canvas border-y border-border" aria-label="Top brands available on instalments">
         <div class="container-qp">
           <p class="text-[10px] font-bold uppercase tracking-widest text-muted text-center mb-4">
             Trusted Brands on Instalments
           </p>
-          <div class="flex items-center justify-center gap-6 md:gap-12 flex-wrap">
-            @for (brand of brands().slice(0, 8); track brand.id) {
-              <a [routerLink]="['/shop']" [queryParams]="{ brandSlug: brand.slug }"
-                 [attr.aria-label]="brand.name + ' products on instalments'"
-                 class="font-heading font-bold text-base md:text-xl text-muted
-                        hover:text-ink transition-colors uppercase tracking-wide">
-                {{ brand.name }}
-              </a>
-            }
+          <div class="qp-marquee overflow-hidden" role="list" aria-label="Trusted brands">
+            <div class="qp-marquee-track gap-10 md:gap-16">
+              @for (brand of marqueeBrands(); track $index) {
+                <a [routerLink]="['/shop']" [queryParams]="{ brandSlug: brand.slug }"
+                   [attr.aria-label]="brand.name + ' products on instalments'"
+                   class="font-heading font-bold text-base md:text-xl text-muted/70
+                          hover:text-primary transition-colors uppercase tracking-wide shrink-0">
+                  {{ brand.name }}
+                </a>
+              }
+            </div>
           </div>
         </div>
       </section>
     }
 
-    <!-- ═══════════════════ FEATURED PRODUCTS ═══════════════════ -->
-    <section class="py-10 md:py-14" aria-labelledby="trending-heading">
-      <div class="container-qp">
-        <div class="flex items-end justify-between mb-6">
-          <div>
-            <p class="text-xs font-bold uppercase tracking-widest text-accent-dark mb-1">Latest</p>
-            <h2 id="trending-heading" class="text-ink">Trending Products</h2>
-          </div>
-          <a routerLink="/shop"
-             aria-label="Browse all mobiles, laptops and electronics on installment"
-             class="text-sm font-semibold text-primary hover:underline flex items-center gap-1 group/link">
-            Browse all products <app-icon name="arrow-right" [size]="14" class="transition-transform duration-200 group-hover/link:translate-x-0.5"/>
-          </a>
-        </div>
+    <!-- ═══════════════════ CATEGORY-WISE LATEST PRODUCTS ═══════════════════ -->
+    @if (categorySections().length) {
+      @for (section of categorySections(); track section.category.id; let sIdx = $index) {
+        <section class="py-10 md:py-14" [class.bg-canvas]="sIdx % 2 === 1">
+          <div class="container-qp">
+            <div class="flex items-end justify-between mb-4" appReveal="left">
+              <div>
+                <p class="text-xs font-bold uppercase tracking-widest text-accent-dark mb-1">Latest</p>
+                <h2 class="text-ink">{{ section.category.name }}</h2>
+              </div>
+              <a [routerLink]="['/shop']" [queryParams]="{ categorySlug: section.category.slug }"
+                 class="text-sm font-semibold text-primary hover:underline flex items-center gap-1 group/link">
+                View all <app-icon name="arrow-right" [size]="14" class="transition-transform duration-200 group-hover/link:translate-x-0.5"/>
+              </a>
+            </div>
 
-        @if (featuredProducts().length) {
-          <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
-            @for (product of featuredProducts(); track product.id) {
-              <app-product-card [product]="product"/>
+            @if (section.brands.length > 1) {
+              <div class="flex flex-wrap gap-2 mb-5">
+                <button type="button" (click)="selectHomeBrand(sIdx, null)"
+                        class="px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors"
+                        [class]="section.activeBrandSlug === null
+                          ? 'bg-primary text-white border-primary'
+                          : 'bg-white text-ink border-border hover:border-primary'">
+                  All
+                </button>
+                @for (b of section.brands; track b.slug) {
+                  <button type="button" (click)="selectHomeBrand(sIdx, b.slug)"
+                          class="px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors"
+                          [class]="section.activeBrandSlug === b.slug
+                            ? 'bg-primary text-white border-primary'
+                            : 'bg-white text-ink border-border hover:border-primary'">
+                    {{ b.name }}
+                  </button>
+                }
+              </div>
+            }
+
+            @if (section.loadingProducts) {
+              <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4" aria-hidden="true">
+                @for (_ of prodSkeletons; track $index) {
+                  <div class="card h-80 shimmer rounded-xl"></div>
+                }
+              </div>
+            } @else if (section.products.length) {
+              <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
+                @for (product of section.products; track product.id) {
+                  <div appReveal="up" [revealDelay]="$index * 60">
+                    <app-product-card [product]="product"/>
+                  </div>
+                }
+              </div>
+            } @else {
+              <p class="card p-8 text-center text-muted text-sm">Is brand ke koi products abhi available nahi.</p>
             }
           </div>
-        } @else if (loading()) {
+        </section>
+      }
+    } @else if (loading()) {
+      <section class="py-10 md:py-14">
+        <div class="container-qp">
           <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4" aria-hidden="true">
             @for (_ of prodSkeletons; track $index) {
               <div class="card h-80 shimmer rounded-xl"></div>
             }
           </div>
-        } @else if (error()) {
+        </div>
+      </section>
+    } @else if (error()) {
+      <section class="py-10 md:py-14">
+        <div class="container-qp">
           <p class="card p-8 text-center text-muted text-sm">
             Products could not be loaded right now. Please refresh the page or try again shortly.
           </p>
-        }
-      </div>
-    </section>
+        </div>
+      </section>
+    }
 
     <!-- ═══════════════════ HOW IT WORKS ═══════════════════ -->
     <section class="py-10 md:py-14 bg-gradient-to-br from-primary-50 via-white to-accent/5"
              aria-labelledby="how-it-works-heading">
       <div class="container-qp">
-        <div class="text-center mb-10">
+        <div class="text-center mb-10" appReveal>
           <p class="text-xs font-bold uppercase tracking-widest text-primary mb-1">Simple Process</p>
           <h2 id="how-it-works-heading" class="text-ink">How It Works</h2>
           <p class="text-muted text-sm mt-2 max-w-xl mx-auto">
@@ -471,9 +569,11 @@ const OFFER_SLIDES: OfferSlide[] = [
                        bg-gradient-to-r from-primary/20 via-primary/40 to-primary/20" aria-hidden="true"></div>
 
           @for (s of steps; track s.n) {
-            <div class="card p-6 text-center relative z-10 hover:-translate-y-1 hover:shadow-lg transition-all duration-300">
+            <div class="card p-6 text-center relative z-10 group hover:-translate-y-1 hover:shadow-lg transition-all duration-300"
+                 appReveal="up" [revealDelay]="$index * 100">
               <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-primary-dark
-                           text-white grid place-items-center mx-auto mb-3 shadow-lg" aria-hidden="true">
+                           text-white grid place-items-center mx-auto mb-3 shadow-lg
+                           transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3" aria-hidden="true">
                 <app-icon [name]="s.icon" [size]="28"/>
               </div>
               <div class="badge-primary mb-2 mx-auto w-fit">Step {{ s.n }}</div>
@@ -495,7 +595,7 @@ const OFFER_SLIDES: OfferSlide[] = [
     <!-- ═══════════════════ OUR BRANCHES ═══════════════════ -->
     <section class="py-10 md:py-14 bg-canvas" aria-labelledby="branches-heading">
       <div class="container-qp">
-        <div class="text-center mb-8">
+        <div class="text-center mb-8" appReveal>
           <p class="text-xs font-bold uppercase tracking-widest text-primary mb-1">Find Us</p>
           <h2 id="branches-heading" class="text-ink">Our Branches</h2>
           <p class="text-muted text-sm mt-2 max-w-lg mx-auto">
@@ -507,7 +607,8 @@ const OFFER_SLIDES: OfferSlide[] = [
         <div class="grid md:grid-cols-3 gap-4">
           @for (b of featuredBranches; track b.name) {
             <article class="card p-5 group hover:border-primary hover:shadow-lg
-                        hover:shadow-primary/10 hover:-translate-y-1 transition-all duration-300">
+                        hover:shadow-primary/10 hover:-translate-y-1 transition-all duration-300"
+                     appReveal="up" [revealDelay]="$index * 90">
               <div class="flex items-center justify-between gap-3 mb-4">
                 <div class="flex items-center gap-3">
                   <div class="w-10 h-10 rounded-xl bg-primary/10 text-primary
@@ -555,7 +656,7 @@ const OFFER_SLIDES: OfferSlide[] = [
     <!-- ═══════════════════ CITIES WE SERVE ═══════════════════ -->
     <section class="py-10 md:py-14 border-t border-border" aria-labelledby="cities-heading">
       <div class="container-qp">
-        <div class="text-center mb-8">
+        <div class="text-center mb-8" appReveal>
           <p class="text-xs font-bold uppercase tracking-widest text-primary mb-1">Service Area</p>
           <h2 id="cities-heading" class="text-ink">Cities We Serve</h2>
           <p class="text-muted text-sm mt-2 max-w-lg mx-auto">
@@ -566,7 +667,7 @@ const OFFER_SLIDES: OfferSlide[] = [
         <nav aria-label="Cities served by QistPY">
           <ul class="grid grid-cols-2 sm:grid-cols-3 gap-3 list-none">
             @for (city of citiesServed; track city.slug) {
-              <li>
+              <li appReveal="up" [revealDelay]="$index * 50">
                 <a [routerLink]="['/', city.slug]"
                    [attr.aria-label]="'Buy on installment in ' + city.name"
                    class="card flex items-center justify-center gap-2 py-3.5 px-3 text-sm font-semibold
@@ -656,7 +757,7 @@ const OFFER_SLIDES: OfferSlide[] = [
     <!-- ═══════════════════ TESTIMONIALS ═══════════════════ -->
     <section class="py-10 md:py-14" aria-labelledby="reviews-heading">
       <div class="container-qp">
-        <div class="text-center mb-8">
+        <div class="text-center mb-8" appReveal>
           <p class="text-xs font-bold uppercase tracking-widest text-success mb-1">Customer Reviews</p>
           <h2 id="reviews-heading" class="text-ink">What Our Customers Say</h2>
           <p class="text-muted text-sm mt-2 max-w-md mx-auto">
@@ -665,14 +766,17 @@ const OFFER_SLIDES: OfferSlide[] = [
         </div>
         <div class="grid md:grid-cols-3 gap-4">
           @for (t of testimonials; track t.name) {
-            <article class="card p-5 transition-all duration-300 hover:shadow-lg hover:shadow-ink/5 hover:-translate-y-1">
-              <div class="flex items-center gap-0.5 text-accent mb-3"
+            <article class="card p-5 relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-ink/5 hover:-translate-y-1"
+                     appReveal="up" [revealDelay]="$index * 90">
+              <!-- decorative quote mark -->
+              <span class="absolute -top-3 right-3 font-heading font-black text-6xl text-primary/5 select-none" aria-hidden="true">&rdquo;</span>
+              <div class="relative flex items-center gap-0.5 text-accent mb-3"
                    [attr.aria-label]="t.rating + ' out of 5 stars'">
                 @for (i of five; track i) {
                   <app-icon name="star" [size]="14"/>
                 }
               </div>
-              <blockquote>
+              <blockquote class="relative">
                 <p class="text-ink/80 text-sm leading-relaxed">&ldquo;{{ t.text }}&rdquo;</p>
               </blockquote>
               <footer class="mt-4 flex items-center gap-3 pt-4 border-t border-border">
@@ -695,7 +799,7 @@ const OFFER_SLIDES: OfferSlide[] = [
     @if (blogPosts().length) {
       <section class="py-10 md:py-14 bg-canvas" aria-labelledby="blog-heading">
         <div class="container-qp">
-          <div class="flex items-center justify-between mb-8">
+          <div class="flex items-center justify-between mb-8" appReveal="left">
             <div>
               <p class="text-xs font-bold uppercase tracking-widest text-success mb-1">Guides</p>
               <h2 id="blog-heading" class="text-ink">From the Blog</h2>
@@ -705,6 +809,7 @@ const OFFER_SLIDES: OfferSlide[] = [
           <div class="grid md:grid-cols-3 gap-4">
             @for (post of blogPosts(); track post.id) {
               <a [routerLink]="['/blog', post.slug]"
+                 appReveal="up" [revealDelay]="$index * 90"
                  class="card overflow-hidden group hover:border-primary hover:shadow-lg
                         hover:shadow-ink/5 hover:-translate-y-1 transition-all duration-300">
                 @if (post.coverImageUrl) {
@@ -714,7 +819,7 @@ const OFFER_SLIDES: OfferSlide[] = [
                   </div>
                 }
                 <div class="p-4">
-                  <h3 class="font-heading font-bold text-ink text-sm leading-snug mb-1.5">{{ post.title }}</h3>
+                  <h3 class="font-heading font-bold text-ink text-sm leading-snug mb-1.5 group-hover:text-primary transition-colors">{{ post.title }}</h3>
                   <p class="text-xs text-muted line-clamp-2">{{ post.excerpt }}</p>
                 </div>
               </a>
@@ -727,17 +832,17 @@ const OFFER_SLIDES: OfferSlide[] = [
     <!-- ═══════════════════ FAQ SNIPPET (SEO) ═══════════════════ -->
     <section class="py-10 md:py-14 border-t border-border" aria-labelledby="faq-heading">
       <div class="container-qp max-w-3xl">
-        <div class="text-center mb-8">
+        <div class="text-center mb-8" appReveal>
           <p class="text-xs font-bold uppercase tracking-widest text-primary mb-1">FAQ</p>
           <h2 id="faq-heading" class="text-ink">Common Questions</h2>
         </div>
         <div class="space-y-3">
           @for (faq of faqs; track faq.q) {
-            <details class="card p-5 group cursor-pointer">
+            <details class="card p-5 group cursor-pointer transition-colors hover:border-primary/40">
               <summary class="font-semibold text-ink text-sm flex items-center justify-between gap-3 list-none">
                 {{ faq.q }}
                 <app-icon name="arrow-right" [size]="14"
-                          class="shrink-0 text-muted rotate-90 group-open:rotate-[270deg] transition-transform duration-200"/>
+                          class="shrink-0 text-muted rotate-90 group-open:rotate-[270deg] group-open:text-primary transition-transform duration-200"/>
               </summary>
               <p class="text-xs text-muted mt-3 leading-relaxed">{{ faq.a }}</p>
             </details>
@@ -756,8 +861,9 @@ const OFFER_SLIDES: OfferSlide[] = [
       <div class="container-qp">
         <div class="relative overflow-hidden rounded-3xl
                      bg-gradient-to-br from-primary via-primary-dark to-ink
-                     p-8 md:p-12 shadow-xl text-center">
-          <div class="absolute -top-10 -right-10 w-48 h-48 bg-accent/30 rounded-full blur-3xl" aria-hidden="true"></div>
+                     p-8 md:p-12 shadow-xl text-center" appReveal="zoom">
+          <div class="absolute -top-10 -right-10 w-48 h-48 bg-accent/30 rounded-full blur-3xl qp-float" aria-hidden="true"></div>
+          <div class="absolute -bottom-12 -left-8 w-40 h-40 bg-primary/40 rounded-full blur-3xl qp-float-slow" aria-hidden="true"></div>
           <div class="relative max-w-xl mx-auto text-white">
             <h2 class="text-white text-xl md:text-3xl font-heading font-bold">
               Buy on Installment in Faisalabad — Get Started Today
@@ -767,12 +873,12 @@ const OFFER_SLIDES: OfferSlide[] = [
               no credit card, no online payment, no waiting rooms.
             </p>
             <div class="mt-6 flex gap-3 justify-center flex-wrap">
-              <a routerLink="/signup" class="btn-accent btn-lg shadow-lg">
+              <a routerLink="/signup" class="btn-accent btn-lg shadow-lg hover:-translate-y-0.5 transition-transform">
                 Create Free Account
                 <app-icon name="arrow-right" [size]="16"/>
               </a>
               <a routerLink="/how-it-works"
-                 class="btn-lg bg-white/10 hover:bg-white/20 text-white border border-white/20">
+                 class="btn-lg bg-white/10 hover:bg-white/20 text-white border border-white/20 transition-colors">
                 How it works
               </a>
             </div>
@@ -787,18 +893,29 @@ export class HomeComponent implements OnInit, OnDestroy {
   private readonly http     = inject(HttpClient);
   private readonly seo      = inject(PageSeoService);
   private readonly blogSvc  = inject(BlogService);
+  private readonly router   = inject(Router);
 
   readonly blogPosts        = signal<BlogPost[]>([]);
   readonly categories       = signal<Category[]>([]);
   readonly brands           = signal<Brand[]>([]);
   readonly featuredProducts = signal<ProductListItem[]>([]);
+  readonly categorySections = signal<HomeCategorySection[]>([]);
   readonly loading          = signal(true);
   readonly error            = signal(false);
   readonly heroIdx          = signal(0);
-  readonly offerIdx         = signal(0);
   readonly bannersLoading   = signal(true);
   readonly heroSlides       = signal<HeroSlide[]>([]);
-  readonly offerSlides      = signal<OfferSlide[]>([]);
+
+  // ── Brand marquee: list ko double kar dete hain taake seamless loop bane ──
+  readonly marqueeBrands = computed(() => {
+    const b = this.brands().slice(0, 8);
+    return b.length ? [...b, ...b] : [];
+  });
+
+  // ── WhatsApp floating button ──
+  private readonly whatsappPhone = '923288888811'; // apna number yahan set karein
+  private readonly whatsappMessage = 'Assalam o Alaikum! Mujhe QistPY par installment ke baare mein maloomat chahiye.';
+  readonly whatsappLink = `https://wa.me/${this.whatsappPhone}?text=${encodeURIComponent(this.whatsappMessage)}`;
 
   private mapHeroSlides(rows: any[]): HeroSlide[] {
     const mapped = (rows ?? []).map((s: any) => ({
@@ -810,30 +927,25 @@ export class HomeComponent implements OnInit, OnDestroy {
     return mapped.length ? mapped : HERO_SLIDES;
   }
 
-  private mapOfferSlides(rows: any[]): OfferSlide[] {
-    const mapped = (rows ?? []).map((s: any) => ({
-      tag: s.badge, title: s.headline, sub: s.subtitle,
-      advance: s.advance || 'Rs 25,000', monthly: s.monthly || 'Rs 8,000',
-      months: s.months || 6, total: s.total || 'Rs 75,000',
-      image: s.imageUrl || OFFER_SLIDES[s.position - 1]?.image,
-      link: s.ctaLink || '/shop',
-      bg: `linear-gradient(135deg, ${s.bgColor} 0%, ${s.bgColor}cc 100%)`,
-    })).filter((s: any) => s.title);
-    return mapped.length ? mapped : OFFER_SLIDES;
-  }
-
   readonly catSkeletons  = Array.from({ length: 8 });
   readonly prodSkeletons = Array.from({ length: 8 });
   readonly five          = [1, 2, 3, 4, 5];
+  readonly planMonths    = [3, 6, 9, 12];
 
-  private heroTimer!:  ReturnType<typeof setInterval>;
-  private offerTimer!: ReturnType<typeof setInterval>;
+  private heroTimer!: ReturnType<typeof setInterval>;
 
   readonly promises: Array<{ label: string; sub: string; icon: IconName }> = [
     { label: 'Free Delivery',   sub: 'Within Faisalabad',    icon: 'truck'       },
     { label: '100% Original',   sub: 'Verified products',    icon: 'badge-check' },
     { label: 'Agent Callback',  sub: 'No online payment',    icon: 'phone'       },
     { label: 'Secure Process',  sub: 'Your data stays safe', icon: 'shield'      },
+  ];
+
+  readonly heroChips: Array<{ label: string; link: any[] }> = [
+    { label: 'Mobiles', link: ['/shop', 'mobiles'] },
+    { label: 'Laptops', link: ['/shop', 'laptops'] },
+    { label: 'Bikes',   link: ['/shop', 'bikes'] },
+    { label: 'ACs',     link: ['/shop', 'acs'] },
   ];
 
   readonly steps: Array<{ n: number; title: string; desc: string; icon: IconName }> = [
@@ -992,15 +1104,13 @@ export class HomeComponent implements OnInit, OnDestroy {
       })),
     });
 
-    this.http.get<{ hero: any[]; offer: any[] }>('/banners').subscribe({
+    this.http.get<{ hero: any[] }>('/banners').subscribe({
       next: (res) => {
         this.heroSlides.set(this.mapHeroSlides(res.hero));
-        this.offerSlides.set(this.mapOfferSlides(res.offer));
         this.bannersLoading.set(false);
       },
       error: () => {
         this.heroSlides.set(HERO_SLIDES);
-        this.offerSlides.set(OFFER_SLIDES);
         this.bannersLoading.set(false);
       },
     });
@@ -1008,11 +1118,6 @@ export class HomeComponent implements OnInit, OnDestroy {
     this.heroTimer = setInterval(() => {
       const total = this.heroSlides().length;
       if (total > 0) this.heroIdx.set((this.heroIdx() + 1) % total);
-    }, 5000);
-
-    this.offerTimer = setInterval(() => {
-      const total = this.offerSlides().length;
-      if (total > 0) this.offerIdx.set((this.offerIdx() + 1) % total);
     }, 5000);
 
     this.blogSvc.list(1, 3).subscribe({
@@ -1031,6 +1136,7 @@ export class HomeComponent implements OnInit, OnDestroy {
         this.featuredProducts.set(products.data);
         this.loading.set(false);
         this.setProductListJsonLd(products.data);
+        this.loadCategorySections(categories);
       },
       error: () => {
         this.loading.set(false);
@@ -1041,7 +1147,79 @@ export class HomeComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     clearInterval(this.heroTimer);
-    clearInterval(this.offerTimer);
+  }
+
+  /**
+   * Home page ke liye har category ka "latest 8" section banata hai.
+   * Khaali categories (jin mein koi published product nahi) automatically skip ho jati hain.
+   * Sirf top 4 sabse "active" (sabse zyada products wali) categories dikhayi jati hain.
+   */
+  private loadCategorySections(categories: Category[]): void {
+    if (!categories.length) return;
+
+    const requests: Record<string, ReturnType<CatalogService['listProducts']>> = {};
+    for (const cat of categories) {
+      // 24 latest lete hain sirf ye pata karne ke liye ke is category mein
+      // konse brands available hain — display sirf top 8 hi hogi.
+      requests[cat.id] = this.catalog.listProducts({ categorySlug: cat.slug, sort: 'latest', pageSize: 24 });
+    }
+
+    forkJoin(requests).subscribe({
+      next: (results) => {
+        const sections: HomeCategorySection[] = [];
+        for (const cat of categories) {
+          const res = results[cat.id];
+          if (!res || res.data.length === 0) continue; // khaali category skip
+
+          const brandMap = new Map<string, { id: string; name: string; slug: string }>();
+          for (const p of res.data) {
+            if (p.brand && !brandMap.has(p.brand.slug)) brandMap.set(p.brand.slug, p.brand);
+          }
+
+          sections.push({
+            category: cat,
+            brands: Array.from(brandMap.values()),
+            activeBrandSlug: null,
+            products: res.data.slice(0, 8),
+            loadingProducts: false,
+          });
+        }
+
+        // Sabse zyada products wali categories ko upar dikhao, sirf top 4.
+        sections.sort((a, b) => b.products.length - a.products.length);
+        this.categorySections.set(sections.slice(0, 4));
+      },
+      error: () => {},
+    });
+  }
+
+  /** Ek category section ke andar brand chip select karne par sirf uska data refresh karo. */
+  selectHomeBrand(sectionIndex: number, brandSlug: string | null): void {
+    const sections = this.categorySections();
+    const section = sections[sectionIndex];
+    if (!section) return;
+
+    this.categorySections.set(
+      sections.map((s, i) => (i === sectionIndex ? { ...s, activeBrandSlug: brandSlug, loadingProducts: true } : s)),
+    );
+
+    this.catalog.listProducts({
+      categorySlug: section.category.slug,
+      brandSlug: brandSlug ?? undefined,
+      sort: 'latest',
+      pageSize: 8,
+    }).subscribe({
+      next: (res) => {
+        this.categorySections.update((list) =>
+          list.map((s, i) => (i === sectionIndex ? { ...s, products: res.data, loadingProducts: false } : s)),
+        );
+      },
+      error: () => {
+        this.categorySections.update((list) =>
+          list.map((s, i) => (i === sectionIndex ? { ...s, loadingProducts: false } : s)),
+        );
+      },
+    });
   }
 
   private setProductListJsonLd(products: ProductListItem[]): void {
@@ -1076,5 +1254,12 @@ export class HomeComponent implements OnInit, OnDestroy {
 
   onCatImgError(event: Event, cat: Category): void {
     (event.target as HTMLImageElement).src = getCategorySvg(cat.name, cat.slug);
+  }
+
+  goSearch(e: Event): void {
+    e.preventDefault();
+    const input = (e.target as HTMLFormElement).querySelector('input[name="q"]') as HTMLInputElement | null;
+    const q = input?.value.trim();
+    this.router.navigate(['/shop'], q ? { queryParams: { query: q } } : {});
   }
 }
