@@ -225,12 +225,20 @@ export class AdminService {
 
   // ── Installment Requests ──────────────────────────────────────────────────
 
-  async listInstallmentRequests(status?: string) {
+    async listInstallmentRequests(status?: string) {
     const where = status ? { status: status as InstallmentRequestStatus } : {};
     return this.prisma.installmentRequest.findMany({
       where, orderBy: { createdAt: 'desc' },
       include: {
-        customer: { select: { id: true, name: true, phone: true, email: true, cnic: true } },
+        customer: {
+          select: {
+            id: true, name: true, phone: true, email: true, cnic: true,
+            addresses: {
+              select: { label: true, line1: true, line2: true, phone: true, isDefault: true, city: { select: { name: true } } },
+              orderBy: { isDefault: 'desc' },
+            },
+          },
+        },
         orderItem: {
           include: {
             product: {

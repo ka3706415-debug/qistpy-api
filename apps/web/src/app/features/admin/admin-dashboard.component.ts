@@ -199,13 +199,20 @@ interface PEdit {
               </div>
               <!-- Body -->
               <div class="p-5 grid md:grid-cols-2 gap-4">
-                <div>
+                                <div>
                   <p class="text-[10px] font-bold text-muted uppercase tracking-wider mb-2">👤 Customer</p>
                   <div class="space-y-0.5 text-sm">
                     <div><span class="text-muted">Name:</span> <strong>{{req.customer?.name}}</strong></div>
                     <div><span class="text-muted">Phone:</span> <span class="tabular-nums">{{req.customer?.phone}}</span></div>
                     <div><span class="text-muted">CNIC:</span> <span class="tabular-nums">{{req.customer?.cnic||'—'}}</span></div>
                     @if(req.customer?.email){<div><span class="text-muted">Email:</span> {{req.customer.email}}</div>}
+                    @if(req.customer?.addresses?.length){
+                      <div class="pt-1.5 mt-1.5 border-t border-slate-100">
+                        <span class="text-muted">Address:</span>
+                        <div class="text-ink">{{req.customer.addresses[0].line1}}@if(req.customer.addresses[0].line2){, {{req.customer.addresses[0].line2}}}, {{req.customer.addresses[0].city?.name}}</div>
+                        <div class="text-muted text-xs">📞 {{req.customer.addresses[0].phone}}</div>
+                      </div>
+                    }
                   </div>
                 </div>
                 <div>

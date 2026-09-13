@@ -85,14 +85,29 @@ export class InstallmentsService {
   async listAllRequests(status?: InstallmentRequestStatus) {
     const where: Prisma.InstallmentRequestWhereInput = {};
     if (status) where.status = status;
-    return this.prisma.installmentRequest.findMany({
+        return this.prisma.installmentRequest.findMany({
       where,
       orderBy: { createdAt: 'desc' },
       take: 100, // simple cap for admin panel
       include: {
-        customer: { select: { id: true, name: true, phone: true } },
-        orderItem: { include: { product: { select: { name: true, slug: true } } } },
-        installmentPlan: { select: { durationMonths: true, totalPayable: true } },
+        customer: {
+          select: {
+            id: true, name: true, phone: true, email: true, cnic: true,
+            addresses: {
+              select: { label: true, line1: true, line2: true, phone: true, isDefault: true, city: { select: { name: true } } },
+              orderBy: { isDefault: 'desc' },
+            },
+          },
+        },
+        orderItem: {
+          include: {
+            product: {
+              select: { id: true, name: true, slug: true, images: { where: { isPrimary: true }, take: 1 } },
+            },
+          },
+        },
+        installmentPlan: true,
+        schedules: { orderBy: { installmentNo: 'asc' } },
       },
     });
   }

@@ -198,7 +198,7 @@ interface HomeCategorySection {
          SEO: Primary H1 hidden visually but readable by crawlers
     ══════════════════════════════════════════════════════════ -->
     <h1 class="sr-only">
-      Buy Mobile on Installment in Faisalabad — Laptops, Bikes &amp; Home Appliances on Easy
+      Buy Mobile on Installment in Faisalabad — , Bikes &amp; Home Appliances on Easy
       Monthly Instalments with QistPY. No credit card. No online payment. Agent-confirmed orders.
     </h1>
 
@@ -267,7 +267,7 @@ interface HomeCategorySection {
                         shadow-lg ring-1 ring-border focus-within:ring-2 focus-within:ring-primary transition">
               <div class="pl-3 text-muted" aria-hidden="true"><app-icon name="tag" [size]="18"/></div>
               <input #heroSearch type="text" name="q"
-                     placeholder="Search mobile, laptop, AC…"
+                     placeholder="Search mobile, AC…"
                      aria-label="Search products"
                      class="flex-1 bg-transparent outline-none text-sm text-ink placeholder:text-muted px-1 py-2 min-w-0"/>
               <button type="submit"
@@ -943,7 +943,6 @@ export class HomeComponent implements OnInit, OnDestroy {
 
   readonly heroChips: Array<{ label: string; link: any[] }> = [
     { label: 'Mobiles', link: ['/shop', 'mobiles'] },
-    { label: 'Laptops', link: ['/shop', 'laptops'] },
     { label: 'Bikes',   link: ['/shop', 'bikes'] },
     { label: 'ACs',     link: ['/shop', 'acs'] },
   ];
@@ -983,7 +982,7 @@ export class HomeComponent implements OnInit, OnDestroy {
       name: 'Fatima Khan',
       city: 'Jaranwala',
       rating: 5,
-      text: 'I was worried about paperwork but honestly there was none. Just a quick call and the laptop arrived the next day.',
+      text: 'I was worried about paperwork but honestly there was none. Just a quick call and the Mobile arrived the next day.',
     },
     {
       initial: 'U',
@@ -1032,7 +1031,7 @@ export class HomeComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.seo.set({
       title: 'Buy Mobile on Installment in Faisalabad | QistPY',
-      description: 'Buy mobile, laptop, electronics & home appliances on easy monthly installments in Faisalabad — no credit card, no online payment. Fast approval, local branches. Order today!',
+      description: 'Buy mobile, electronics & home appliances on easy monthly installments in Faisalabad — no credit card, no online payment. Fast approval, local branches. Order today!',
       path: '/',
     });
 
