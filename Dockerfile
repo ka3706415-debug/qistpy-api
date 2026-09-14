@@ -1,6 +1,15 @@
 FROM node:20-bookworm-slim
 
-RUN apt-get update -y && apt-get install -y openssl python3 make g++
+RUN apt-get update -y && apt-get install -y openssl python3 make g++ libaio1 wget unzip
+
+# ---------- Oracle Instant Client (Linux, Thick mode) ----------
+RUN mkdir -p /opt/oracle && \
+    wget -q https://download.oracle.com/otn_software/linux/instantclient/1923000/instantclient-basiclite-linux.x64-19.23.0.0.0dbru.zip -O /opt/oracle/ic.zip && \
+    unzip -q /opt/oracle/ic.zip -d /opt/oracle && \
+    rm /opt/oracle/ic.zip
+
+ENV LD_LIBRARY_PATH=/opt/oracle/instantclient_19_23:$LD_LIBRARY_PATH
+ENV ORACLE_CLIENT_LIB_DIR=/opt/oracle/instantclient_19_23
 
 RUN npm install -g pnpm
 

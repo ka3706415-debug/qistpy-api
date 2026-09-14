@@ -2,7 +2,9 @@ import { BadRequestException, Injectable, Logger, NotFoundException, OnModuleDes
 import { ProductStatus } from '@prisma/client';
 import oracledb from 'oracledb';
 try {
-  oracledb.initOracleClient({ libDir: 'C:\\oracle\\instantclient_19_23' });
+  const libDir = process.env.ORACLE_CLIENT_LIB_DIR
+    || (process.platform === 'win32' ? 'C:\\oracle\\instantclient_19_23' : '/opt/oracle/instantclient_19_23');
+  oracledb.initOracleClient({ libDir });
 } catch (err) {
   console.error('Oracle Thick mode client load nahi ho saka:', err);
 }
