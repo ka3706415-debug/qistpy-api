@@ -22,6 +22,7 @@ import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { AuthenticatedUser } from './strategies/jwt.strategy';
 import { AuthService } from './auth.service';
+import { SignupDirectDto } from './dto/signup-direct.dto';
 
 const REFRESH_COOKIE = 'qp_refresh';
 
@@ -33,6 +34,24 @@ export class AuthController {
   ) {}
 
   // ---------- SIGNUP ----------
+    @Throttle({ default: { limit: 5, ttl: 15 * 60_000 } })
+  @Post('signup/direct')
+  @HttpCode(HttpStatus.CREATED)
+  async signupDirect(
+    @Body() dto: SignupDirectDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.auth.signupDirect(dto, {
+      userAgent: req.headers['user-agent'],
+      ipAddress: req.ip,
+    });
+    this.setRefreshCookie(res, result.refreshToken, result.refreshExpiresAt);
+    return {
+      user: result.user,
+      accessToken: result.accessToken,
+    };
+  }
 
   // Stricter throttle: 5 requests / 15 minutes per IP, mirrors brief Phase 10.
   @Throttle({ default: { limit: 5, ttl: 15 * 60_000 } })

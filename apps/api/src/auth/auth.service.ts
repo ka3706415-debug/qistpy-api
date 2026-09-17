@@ -18,6 +18,7 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 import { SignupCompleteDto } from './dto/signup-complete.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { TokensService } from './tokens/tokens.service';
+import { SignupDirectDto } from './dto/signup-direct.dto';
 
 interface ConnMeta {
   userAgent?: string;
@@ -119,7 +120,54 @@ export class AuthService {
     }
     throw new BadRequestException('Unsupported purpose');
   }
+    // ============================================================
+  // Signup — DIRECT (no OTP, temporary until SMS provider is live)
+  // ============================================================
 
+  async signupDirect(
+    dto: SignupDirectDto,
+    meta: ConnMeta,
+  ): Promise<{
+    user: { id: string; phone: string; name: string; role: UserRole };
+    accessToken: string;
+    refreshToken: string;
+    refreshExpiresAt: Date;
+  }> {
+    const phone = this.normalizePhone(dto.phone);
+
+    const [phoneTaken, cnicTaken] = await Promise.all([
+      this.prisma.user.findUnique({ where: { phone } }),
+      this.prisma.user.findUnique({ where: { cnic: dto.cnic } }),
+    ]);
+    if (phoneTaken) throw new ConflictException('Account already exists for this phone');
+    if (cnicTaken) throw new ConflictException('An account with this CNIC already exists');
+
+    const passwordHash = await this.hashPassword(dto.password);
+
+    const user = await this.prisma.user.create({
+      data: {
+        phone,
+        email: dto.email,
+        name: dto.name,
+        cnic: dto.cnic,
+        passwordHash,
+        role: UserRole.CUSTOMER,
+        isPhoneVerified: false, // no OTP verified yet — mark false so we know later
+      },
+      select: { id: true, phone: true, name: true, role: true },
+    });
+    this.logger.log(`New user signed up (no OTP): ${this.maskCnic(dto.cnic)} / ${phone}`);
+
+    const access = this.tokens.signAccessToken({ sub: user.id, role: user.role, phone });
+    const refresh = await this.tokens.issueRefreshToken(user.id, meta);
+
+    return {
+      user,
+      accessToken: access,
+      refreshToken: refresh.raw,
+      refreshExpiresAt: refresh.expiresAt,
+    };
+  }
   // ============================================================
   // Signup — complete after OTP verified
   // ============================================================

@@ -36,6 +36,10 @@ export class AuthService {
   readonly token      = this._token.asReadonly();
   readonly isLoggedIn = computed(() => this._user() !== null);
   readonly role       = computed(() => this._user()?.role ?? null);
+    signupDirect(body: { phone: string; name: string; password: string; cnic: string }): Observable<LoginResponse> {
+    return this.http.post<LoginResponse>('/auth/signup/direct', body)
+      .pipe(tap((res) => this.persist(res)));
+  }
 
   requestSignupOtp(phone: string): Observable<{ message: string; expiresInMinutes: number }> {
     return this.http.post<{ message: string; expiresInMinutes: number }>(
